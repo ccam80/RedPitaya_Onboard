@@ -1,6 +1,6 @@
 CFLAGS = -O3 -march=armv7-a -mtune=cortex-a9 -D_GNU_SOURCE
 
-all: adc-test-server gen
+all: adc-test-server gen struct_test
 
 adc-test-server: adc-test-server.c
 	gcc $(CFLAGS) -o $@ $^ -lm
