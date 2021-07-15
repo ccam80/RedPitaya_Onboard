@@ -74,7 +74,7 @@ int main ()
 	// Open GPIO memory section
 	if((fd = open("/dev/mem", O_RDWR)) < 0)
 	{
-		perror("open");
+		perror("open\n");
 		return EXIT_FAILURE;
 	}
 
@@ -86,7 +86,7 @@ int main ()
 	// Open contiguous data memory section
 	if((fd = open("/dev/cma", O_RDWR)) < 0)
 	{
-		perror("open");
+		perror("open\n");
 		return EXIT_FAILURE;
 	}
 
@@ -94,7 +94,7 @@ int main ()
 	size = 128*sysconf(_SC_PAGESIZE);
 	if(ioctl(fd, CMA_ALLOC, &size) < 0)
 	{
-		perror("ioctl");
+		perror("ioctl\n");
 		return EXIT_FAILURE;
 	}
 
@@ -117,7 +117,7 @@ int main ()
 	// Configure Socket
 	if((sock_server = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{
-		perror("socket");
+		perror("socket\n");
 		return EXIT_FAILURE;
 	}
 
@@ -131,7 +131,7 @@ int main ()
 
 	if(bind(sock_server, (struct sockaddr *)&addr, sizeof(addr)) < 0)
 	{
-		perror("bind");
+		perror("bind\n");
 		return EXIT_FAILURE;
 	}
 
@@ -140,7 +140,7 @@ int main ()
 	while(!interrupted)
 	{
 		/* enter reset mode */
-		printf("reset entered");
+		printf("reset entered\n");
 		*rx_rst &= ~1;
 		usleep(100);
 		*rx_rst &= ~2;
@@ -155,7 +155,7 @@ int main ()
 
 		if((sock_client = accept(sock_server, NULL, NULL)) < 0)
 		{
-			perror("accept");
+			perror("accept\n");
 			return EXIT_FAILURE;
 		}
 
@@ -249,19 +249,18 @@ int main ()
 					}
 					printf("received\n");
 				} 
-				printf("next layer up");
+				printf("next layer up\n");
 			}
 			else
 			{
 				usleep(100);
-				printf("else/sleep");
 			}
 		}
-		printf("sigint");
+		printf("sigint\n");
 		signal(SIGINT, SIG_DFL);
 		close(sock_client);
 	}
-	printf("final reset");
+	printf("final reset\n");
 	/* enter reset mode */
 	*rx_rst &= ~1;
 	usleep(100);
