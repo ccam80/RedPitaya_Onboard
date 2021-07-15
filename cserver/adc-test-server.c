@@ -140,6 +140,7 @@ int main ()
 	while(!interrupted)
 	{
 		/* enter reset mode */
+		printf("reset entered");
 		*rx_rst &= ~1;
 		usleep(100);
 		*rx_rst &= ~2;
@@ -177,7 +178,7 @@ int main ()
 				limit = limit > 0 ? 0 : 32*1024;
 				if(send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL) < 0) break;
 				printf("Send success\n");
-				
+
 				while(recv(sock_client, &fetched_config, sizeof(config_t), MSG_DONTWAIT) > 0)
 				{
 					printf("received\n");
@@ -246,18 +247,21 @@ int main ()
 							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
 						}
 					}
+					printf("received\n");
 				} 
+				printf("next layer up");
 			}
 			else
 			{
 				usleep(100);
+				printf("else/sleep");
 			}
 		}
-
+		printf("sigint");
 		signal(SIGINT, SIG_DFL);
 		close(sock_client);
 	}
-
+	printf("final reset");
 	/* enter reset mode */
 	*rx_rst &= ~1;
 	usleep(100);
