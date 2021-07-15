@@ -139,7 +139,14 @@ int main ()
 
 	while(!interrupted)
 	{
+		/* set channel parameters */
+		*ch1_increment = (uint32_t)floor(current_config.ch1_freq / 125.0e6 * (1<<30) + 0.5);
+		*ch2_increment = (uint32_t)floor(current_config.ch2_freq  / 125.0e6 * (1<<30) + 0.5);
+		*ch1_ampl = current_config.ch1_ampl;
+		*ch2_ampl = current_config.ch2_ampl;
+		
 		/* enter reset mode */
+		reset_due = false;
 		printf("reset entered\n");
 		*rx_rst &= ~1;
 		usleep(100);
@@ -147,11 +154,7 @@ int main ()
 		/* set sample rate */
 		*rx_rate = current_config.CIC_divider;
 
-		/* set channel parameters */
-		*ch1_increment = (uint32_t)floor(current_config.ch1_freq / 125.0e6 * (1<<30) + 0.5);
-		*ch2_increment = (uint32_t)floor(current_config.ch2_freq  / 125.0e6 * (1<<30) + 0.5);
-		*ch1_ampl = current_config.ch1_ampl;
-		*ch2_ampl = current_config.ch2_ampl;
+		
 
 		if((sock_client = accept(sock_server, NULL, NULL)) < 0)
 		{
