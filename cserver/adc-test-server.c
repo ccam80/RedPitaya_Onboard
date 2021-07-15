@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <signal.h>
 #include <sched.h>
@@ -29,10 +30,10 @@ int interrupted = 0;
 
 typedef struct config_struct {
 	uint16_t CIC_divider;
-	uint32_t f_out;
-	uint32_t f_out2;
-	uint16_t mult0;
-	uint16_t mult1;
+	uint32_t ch1_freq;
+	uint32_t ch2_freq;
+	uint16_t ch1_ampl;
+	uint16_t ch2_ampl;
 } config_t;
 
 void signal_handler(int sig)
@@ -42,7 +43,6 @@ void signal_handler(int sig)
 
 int main ()
 {
-	config_t current_config, fetched_config = {0};
 	int fd, sock_server, sock_client;
 	int position, limit, offset;
 	volatile uint32_t *rx_addr, *rx_cntr, *ch1_increment, *ch2_increment;
@@ -177,7 +177,8 @@ int main ()
 				limit = limit > 0 ? 0 : 32*1024;
 				if(send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL) < 0) break;
 				printf("Send success\n");
-				while(recv(sock_client, fetched_config, sizeof(config_t), MSG_DONTWAIT) > 0)
+				
+				while(recv(sock_client, &fetched_config, sizeof(config_t), MSG_DONTWAIT) > 0)
 				{
 					printf("received\n");
 					if (fetched_config.CIC_divider != current_config.CIC_divider &
@@ -194,11 +195,11 @@ int main ()
 						}
 					}
 		 			
-					if (fetched_config.f_out != current_config.f_out)
+					if (fetched_config.ch1_freq != current_config.ch1_freq)
 					{
-						if (fetched_config.f_out < 61440000)
+						if (fetched_config.ch1_freq < 61440000)
 						{
-							current_config.f_out = fetched_config.f_out;
+							current_config.ch1_freq = fetched_config.ch1_freq;
 							reset_due = true;
 						}
 						else {
@@ -207,11 +208,11 @@ int main ()
 						}
 					}
 
-					if (fetched_config.f_out2 != current_config.f_out2)
+					if (fetched_config.ch2_freq != current_config.ch2_freq)
 					{
-						if (fetched_config.f_out2 < 61440000)
+						if (fetched_config.ch2_freq < 61440000)
 						{
-							current_config.f_out2 = fetched_config.f_out2;
+							current_config.ch2_freq = fetched_config.ch2_freq;
 							reset_due = true;
 						}
 						else {
@@ -220,11 +221,11 @@ int main ()
 						}
 					}
 					
-					if (fetched_config.mult0 != current_config.mult0)
+					if (fetched_config.ch1_ampl != current_config.ch1_ampl)
 					{
-						if (fetched_config.mult0 < 32766)
+						if (fetched_config.ch1_ampl < 32766)
 						{
-							current_config.mult0 = fetched_config.mult0;
+							current_config.ch1_ampl = fetched_config.ch1_ampl;
 							reset_due = true;
 						}
 						else {
@@ -233,11 +234,11 @@ int main ()
 						}
 					}
 
-					if (fetched_config.mult1 != current_config.mult1)
+					if (fetched_config.ch2_ampl != current_config.ch2_ampl)
 					{
-						if (fetched_config.mult1 < 32766)
+						if (fetched_config.ch2_ampl < 32766)
 						{
-							current_config.mult1 = fetched_config.mult1;
+							current_config.ch2_ampl = fetched_config.ch2_ampl;
 							reset_due = true;
 						}
 						else {
