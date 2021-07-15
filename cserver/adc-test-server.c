@@ -62,8 +62,6 @@ int main ()
 												.ch2_freq = CH2_FREQ_INIT,
 												.ch1_ampl = CH1_AMPL_INIT,
 												.ch2_ampl = CH2_AMPL_INIT};
-	printf("%d", current_config.ch1_freq);
-	printf("%d", fetched_config.ch1_freq);
 
 	// Pavel's config stuff - don not understand so do not touch. Seems important to have a CPU.
 	memset(&param, 0, sizeof(param));
@@ -143,14 +141,12 @@ int main ()
 	{
 		/* set channel parameters */
 		*ch1_increment = (uint32_t)floor(current_config.ch1_freq / 125.0e6 * (1<<30) + 0.5);
-		printf("%d", current_config.ch1_freq);
 		*ch2_increment = (uint32_t)floor(current_config.ch2_freq  / 125.0e6 * (1<<30) + 0.5);
 		*ch1_ampl = current_config.ch1_ampl;
 		*ch2_ampl = current_config.ch2_ampl;
 
 		/* enter reset mode */
 		reset_due = false;
-		printf("reset entered\n");
 		*rx_rst &= ~1;
 		usleep(100);
 		*rx_rst &= ~2;
@@ -183,11 +179,11 @@ int main ()
 				offset = limit > 0 ? 0 : 256*1024;
 				limit = limit > 0 ? 0 : 32*1024;
 				if(send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL) < 0) break;
-				printf("Send success\n");
-
+			}
+			else
+			{
 				while(recv(sock_client, &fetched_config, sizeof(config_t), MSG_DONTWAIT) > 0)
 				{
-					printf("received\n");
 					if (fetched_config.CIC_divider != current_config.CIC_divider &
 					fetched_config.CIC_divider < 6250)
 					{
@@ -253,20 +249,13 @@ int main ()
 							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
 						}
 					}
-					printf("received\n");
 				} 
-				printf("next layer up\n");
-			}
-			else
-			{
 				usleep(100);
 			}
 		}
-		printf("sigint\n");
 		signal(SIGINT, SIG_DFL);
 		close(sock_client);
 	}
-	printf("final reset\n");
 	/* enter reset mode */
 	*rx_rst &= ~1;
 	usleep(100);
