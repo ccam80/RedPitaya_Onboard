@@ -57,7 +57,7 @@ int main ()
 	int config_error = -10;
 	bool reset_due = false;
 
-	config_t current_config, fetched_config = {.CIC_divider = SAMPLING_DIVIDER_INIT,
+	config_t fetched_config, current_config = {.CIC_divider = SAMPLING_DIVIDER_INIT,
 					    						.ch1_freq = CH1_FREQ_INIT,
 												.ch2_freq = CH2_FREQ_INIT,
 												.ch1_ampl = CH1_AMPL_INIT,
