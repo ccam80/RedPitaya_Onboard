@@ -170,7 +170,7 @@ int main ()
 
 		while(!reset_due)
 		{
-			/* read ram writer position */
+			/* read ram writer position */ 
 			position = *rx_cntr;
 
 			/* send 256 kB if ready, otherwise sleep 0.1 ms */
