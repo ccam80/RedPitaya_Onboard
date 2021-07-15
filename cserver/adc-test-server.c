@@ -18,13 +18,17 @@
 
 #define CMA_ALLOC _IOWR('Z', 0, uint32_t)
 
+// Starting RP Config
+#define CH1_AMPL_INIT 32000				// Almost max
+#define CH1_FREQ_INIT 1					// 1Hz
+#define CH2_AMPL_INIT 32000				// Almost max
+#define CH2_FREQ_INIT 1					// 1Hz
+#define SAMPLING_DIVIDER_INIT 1250  	// 100 kHz
+
 int interrupted = 0;
 
 typedef struct config_struct {
-	uint8_t width_reset;
-	uint8_t ram_writer_reset;
 	uint16_t CIC_divider;
-	uint32_t ram_writer_input;
 	uint32_t f_out;
 	uint32_t f_out2;
 	uint16_t mult0;
@@ -38,11 +42,11 @@ void signal_handler(int sig)
 
 int main ()
 {
-	config_t current_config, fetched_config;
+	config_t current_config, fetched_config = {0};
 	int fd, sock_server, sock_client;
 	int position, limit, offset;
-	volatile uint32_t *rx_addr, *rx_cntr;
-	volatile uint16_t *rx_rate;
+	volatile uint32_t *rx_addr, *rx_cntr, *ch1_increment, *ch2_increment;
+	volatile uint16_t *rx_rate, *ch1_ampl, *ch2_ampl;
 	volatile uint8_t *rx_rst;
 	volatile void *cfg, *sts, *ram;
 	cpu_set_t mask;
@@ -50,51 +54,67 @@ int main ()
 	struct sockaddr_in addr;
 	uint32_t size;
 	int yes = 1;
+	int config_error = -10;
+	bool reset_due = false;
 
+	config_t current_config, fetched_config = {SAMPLING_DIVIDER_INIT,
+											   CH1_FREQ_INIT,
+											   CH2_FREQ_INIT,
+											   CH1_AMPL_INIT,
+											   CH2_AMPL_INIT};
 
+	// Pavel's config stuff - don not understand so do not touch. Seems important to have a CPU.
 	memset(&param, 0, sizeof(param));
 	param.sched_priority = sched_get_priority_max(SCHED_FIFO);
 	sched_setscheduler(0, SCHED_FIFO, &param);
-
 	CPU_ZERO(&mask);
 	CPU_SET(1, &mask);
 	sched_setaffinity(0, sizeof(cpu_set_t), &mask);
 
+	// Open GPIO memory section
 	if((fd = open("/dev/mem", O_RDWR)) < 0)
 	{
 		perror("open");
 		return EXIT_FAILURE;
 	}
 
+	// Map Status and config addresses, close memory section once mapped
 	sts = mmap(NULL, sysconf(_SC_PAGESIZE), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0x40000000);
 	cfg = mmap(NULL, sysconf(_SC_PAGESIZE), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0x40001000);
-
 	close(fd);
 
+	// Open contiguous data memory section
 	if((fd = open("/dev/cma", O_RDWR)) < 0)
 	{
 		perror("open");
 		return EXIT_FAILURE;
 	}
 
+	// This seems important... PD's code relating to contiguous data section
 	size = 128*sysconf(_SC_PAGESIZE);
-
 	if(ioctl(fd, CMA_ALLOC, &size) < 0)
 	{
 		perror("ioctl");
 		return EXIT_FAILURE;
 	}
 
+	// Map shared zone
 	ram = mmap(NULL, 128*sysconf(_SC_PAGESIZE), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 
+	// Assign GPIO/Config/Status pointers
 	rx_rst = (uint8_t *)(cfg + 0);
 	rx_rate = (uint16_t *)(cfg + 2);
 	rx_addr = (uint32_t *)(cfg + 4);
-
+	ch1_ampl = (uint16_t *)(cfg + 16);
+	ch1_increment = (uint32_t *)(cfg + 8);
+	ch2_ampl = (uint16_t *)(cfg + 18);
+	ch2_increment = (uint32_t *)(cfg + 12);
 	rx_cntr = (uint32_t *)(sts + 12);
 
+	// PD's assignment - think this sets current read address at top of section
 	*rx_addr = size;
 
+	// Configure Socket
 	if((sock_server = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{
 		perror("socket");
@@ -123,8 +143,14 @@ int main ()
 		*rx_rst &= ~1;
 		usleep(100);
 		*rx_rst &= ~2;
-		/* set default sample rate */
-		*rx_rate = 1000;
+		/* set sample rate */
+		*rx_rate = current_config.CIC_divider;
+
+		/* set channel parameters */
+		*ch1_increment = (uint32_t)floor(current_config.ch1_freq / 125.0e6 * (1<<30) + 0.5);
+		*ch2_increment = (uint32_t)floor(current_config.ch2_freq  / 125.0e6 * (1<<30) + 0.5);
+		*ch1_ampl = current_config.ch1_ampl;
+		*ch2_ampl = current_config.ch2_ampl;
 
 		if((sock_client = accept(sock_server, NULL, NULL)) < 0)
 		{
@@ -139,7 +165,7 @@ int main ()
 
 		limit = 32*1024;
 
-		while(!interrupted)
+		while(!reset_due)
 		{
 			/* read ram writer position */
 			position = *rx_cntr;
@@ -151,12 +177,73 @@ int main ()
 				limit = limit > 0 ? 0 : 32*1024;
 				if(send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL) < 0) break;
 				printf("Send success\n");
-				while(recv(sock_client, config_buffer, 8, MSG_DONTWAIT) > 0)
+				while(recv(sock_client, fetched_config, sizeof(config_t), MSG_DONTWAIT) > 0)
 				{
-					printf("receive\n");
-					for (int i=0; i < strlen(config_buffer); i++)
+					printf("received\n");
+					if (fetched_config.CIC_divider != current_config.CIC_divider &
+					fetched_config.CIC_divider < 6250)
 					{
-						printf("%d\n",config_buffer[i]);
+						if (fetched_config.CIC_divider < 6250)
+						{
+							current_config.CIC_divider = fetched_config.CIC_divider;
+							reset_due = true;
+						}
+						else {
+							// Tell GUI that the numbers are wrong somehow
+							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+						}
+					}
+		 			
+					if (fetched_config.f_out != current_config.f_out)
+					{
+						if (fetched_config.f_out < 61440000)
+						{
+							current_config.f_out = fetched_config.f_out;
+							reset_due = true;
+						}
+						else {
+							// Tell GUI that the numbers are wrong somehow
+							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+						}
+					}
+
+					if (fetched_config.f_out2 != current_config.f_out2)
+					{
+						if (fetched_config.f_out2 < 61440000)
+						{
+							current_config.f_out2 = fetched_config.f_out2;
+							reset_due = true;
+						}
+						else {
+							// Tell GUI that the numbers are wrong somehow
+							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+						}
+					}
+					
+					if (fetched_config.mult0 != current_config.mult0)
+					{
+						if (fetched_config.mult0 < 32766)
+						{
+							current_config.mult0 = fetched_config.mult0;
+							reset_due = true;
+						}
+						else {
+							// Tell GUI that the numbers are wrong somehow
+							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+						}
+					}
+
+					if (fetched_config.mult1 != current_config.mult1)
+					{
+						if (fetched_config.mult1 < 32766)
+						{
+							current_config.mult1 = fetched_config.mult1;
+							reset_due = true;
+						}
+						else {
+							// Tell GUI that the numbers are wrong somehow
+							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+						}
 					}
 				} 
 			}
