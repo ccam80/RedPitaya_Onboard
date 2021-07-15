@@ -57,15 +57,14 @@ int main ()
 	int config_error = -10;
 	bool reset_due = false;
 
-	config_t current_config, fetched_config;
-	
-	current_config = {.CIC_divider = SAMPLING_DIVIDER_INIT,
-					  .ch1_freq = CH1_FREQ_INIT,
-					  .ch2_freq = CH2_FREQ_INIT,
-					  .ch1_ampl = CH1_AMPL_INIT,
-					  .ch2_ampl = CH2_AMPL_INIT};
+	config_t current_config, fetched_config = {.CIC_divider = SAMPLING_DIVIDER_INIT,
+					    						.ch1_freq = CH1_FREQ_INIT,
+												.ch2_freq = CH2_FREQ_INIT,
+												.ch1_ampl = CH1_AMPL_INIT,
+												.ch2_ampl = CH2_AMPL_INIT};
 	printf("%d", current_config.ch1_freq);
-	
+	printf("%d", fetched_config.ch1_freq);
+
 	// Pavel's config stuff - don not understand so do not touch. Seems important to have a CPU.
 	memset(&param, 0, sizeof(param));
 	param.sched_priority = sched_get_priority_max(SCHED_FIFO);
