@@ -31,9 +31,9 @@ int interrupted = 0;
 typedef struct config_struct {
 	uint16_t CIC_divider;
 	uint32_t ch1_freq;
-	uint32_t ch2_freq;
+	uint32_t a_val;
 	uint16_t ch1_ampl;
-	uint16_t ch2_ampl;
+	uint16_t b_val;
 } config_t;
 
 void signal_handler(int sig)
@@ -107,8 +107,8 @@ int main ()
 	rx_addr = (uint32_t *)(cfg + 4);
 	ch1_ampl = (uint16_t *)(cfg + 16);
 	ch1_increment = (uint32_t *)(cfg + 8);
-	ch2_ampl = (uint16_t *)(cfg + 18);
-	ch2_increment = (uint32_t *)(cfg + 12);
+	b_const = (uint16_t *)(cfg + 18);
+	a_const = (uint32_t *)(cfg + 12);
 	rx_cntr = (uint32_t *)(sts + 12);
 
 	// PD's assignment - think this sets current read address at top of section
@@ -141,9 +141,9 @@ int main ()
 	{
 		/* set channel parameters */
 		*ch1_increment = (uint32_t)floor(current_config.ch1_freq / 125.0e6 * (1<<30) + 0.5);
-		*ch2_increment = (uint32_t)floor(current_config.ch2_freq  / 125.0e6 * (1<<30) + 0.5);
+		*a_const = current_config.a_val;
 		*ch1_ampl = current_config.ch1_ampl;
-		*ch2_ampl = current_config.ch2_ampl;
+		*b_const = current_config.b_val;
 
 		/* enter reset mode */
 		reset_due = false;
@@ -211,11 +211,11 @@ int main ()
 						}
 					}
 
-					if (fetched_config.ch2_freq != current_config.ch2_freq)
+					if (fetched_config.a_const != current_config.a_const)
 					{
-						if (fetched_config.ch2_freq < 61440000)
+						if (fetched_config.a_const < 32000)
 						{
-							current_config.ch2_freq = fetched_config.ch2_freq;
+							current_config.a_const = fetched_config.a_const;
 							reset_due = true;
 						}
 						else {
@@ -237,11 +237,11 @@ int main ()
 						}
 					}
 
-					if (fetched_config.ch2_ampl != current_config.ch2_ampl)
+					if (fetched_config.b_const != current_config.b_const)
 					{
-						if (fetched_config.ch2_ampl < 32766)
+						if (fetched_config.b_const < 32766)
 						{
-							current_config.ch2_ampl = fetched_config.ch2_ampl;
+							current_config.b_const = fetched_config.b_const;
 							reset_due = true;
 						}
 						else {
