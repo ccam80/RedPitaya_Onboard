@@ -45,8 +45,8 @@ int main ()
 {
 	int fd, sock_server, sock_client;
 	int position, limit, offset;
-	volatile uint32_t *rx_addr, *rx_cntr, *ch1_increment, *ch2_increment;
-	volatile uint16_t *rx_rate, *ch1_ampl, *ch2_ampl;
+	volatile uint32_t *rx_addr, *rx_cntr, *ch1_increment, *a_const;
+	volatile uint16_t *rx_rate, *ch1_ampl, *b_const;
 	volatile uint8_t *rx_rst;
 	volatile void *cfg, *sts, *ram;
 	cpu_set_t mask;
@@ -59,9 +59,9 @@ int main ()
 
 	config_t fetched_config, current_config = {.CIC_divider = SAMPLING_DIVIDER_INIT,
 					    						.ch1_freq = CH1_FREQ_INIT,
-												.ch2_freq = CH2_FREQ_INIT,
+												.a_val = CH2_FREQ_INIT,
 												.ch1_ampl = CH1_AMPL_INIT,
-												.ch2_ampl = CH2_AMPL_INIT};
+												.b_val = CH2_AMPL_INIT};
 
 	// Pavel's config stuff - don not understand so do not touch. Seems important to have a CPU.
 	memset(&param, 0, sizeof(param));
