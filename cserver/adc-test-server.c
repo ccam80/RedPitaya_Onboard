@@ -31,9 +31,9 @@ int interrupted = 0;
 typedef struct config_struct {
 	uint16_t CIC_divider;
 	uint32_t ch1_freq;
-	uint32_t a_val;
+	uint32_t a_const;
 	uint16_t ch1_ampl;
-	uint16_t b_val;
+	uint16_t b_const;
 } config_t;
 
 void signal_handler(int sig)
@@ -59,9 +59,9 @@ int main ()
 
 	config_t fetched_config, current_config = {.CIC_divider = SAMPLING_DIVIDER_INIT,
 					    						.ch1_freq = CH1_FREQ_INIT,
-												.a_val = CH2_FREQ_INIT,
+												.a_const = CH2_FREQ_INIT,
 												.ch1_ampl = CH1_AMPL_INIT,
-												.b_val = CH2_AMPL_INIT};
+												.b_const = CH2_AMPL_INIT};
 
 	// Pavel's config stuff - don not understand so do not touch. Seems important to have a CPU.
 	memset(&param, 0, sizeof(param));
@@ -141,9 +141,9 @@ int main ()
 	{
 		/* set channel parameters */
 		*ch1_increment = (uint32_t)floor(current_config.ch1_freq / 125.0e6 * (1<<30) + 0.5);
-		*a_const = current_config.a_val;
+		*a_const = current_config.a_const;
 		*ch1_ampl = current_config.ch1_ampl;
-		*b_const = current_config.b_val;
+		*b_const = current_config.b_const;
 
 		/* enter reset mode */
 		reset_due = false;
