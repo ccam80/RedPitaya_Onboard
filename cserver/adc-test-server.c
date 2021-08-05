@@ -136,7 +136,7 @@ int main ()
 	}
 
 	listen(sock_server, 1024);
-	printf("hit first while");
+	printf("hit first while\n");
 	while(!interrupted)
 	{
 		/* set channel parameters */
@@ -144,7 +144,7 @@ int main ()
 		*a_const = current_config.a_const;
 		*ch1_ampl = current_config.ch1_ampl;
 		*b_const = current_config.b_const;
-		printf("params set");
+		printf("params set\n");
 		/* enter reset mode */
 		reset_due = false;
 		*rx_rst &= ~1;
@@ -167,7 +167,7 @@ int main ()
 		*rx_rst |= 3;
 
 		limit = 32*1024;
-		printf("hit second while");
+		printf("hit second while\n");
 		while(!reset_due)
 		{
 			/* read ram writer position */ 
@@ -179,9 +179,9 @@ int main ()
 			{
 				offset = limit > 0 ? 0 : 256*1024;
 				limit = limit > 0 ? 0 : 32*1024;
-				printf("ready to send");
+				printf("ready to send\n");
 				if(send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL) < 0) break;
-				printf("sent");
+				printf("sent\n");
 			}
 			else
 			{
