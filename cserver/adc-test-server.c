@@ -172,13 +172,16 @@ int main ()
 		{
 			/* read ram writer position */ 
 			position = *rx_cntr;
+			printf("ram_writer read");
 
 			/* send 256 kB if ready, otherwise sleep 0.1 ms */
 			if((limit > 0 && position > limit) || (limit == 0 && position < 32*1024))
 			{
 				offset = limit > 0 ? 0 : 256*1024;
 				limit = limit > 0 ? 0 : 32*1024;
+				printf("ready to send");
 				if(send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL) < 0) break;
+				printf("sent")
 			}
 			else
 			{
