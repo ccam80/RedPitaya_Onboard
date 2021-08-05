@@ -22,8 +22,8 @@
 // Starting RP Config
 #define CH1_AMPL_INIT 32000				// Almost max
 #define CH1_FREQ_INIT 1					// 1Hz
-#define CH2_AMPL_INIT 32000				// Almost max
-#define CH2_FREQ_INIT 1					// 1Hz
+#define A_CONST_INIT 1				// Almost max
+#define B_CONST_INIT 0					// 1Hz
 #define SAMPLING_DIVIDER_INIT 1250  	// 100 kHz
 
 int interrupted = 0;
@@ -59,9 +59,9 @@ int main ()
 
 	config_t fetched_config, current_config = {.CIC_divider = SAMPLING_DIVIDER_INIT,
 					    						.ch1_freq = CH1_FREQ_INIT,
-												.a_const = CH2_FREQ_INIT,
+												.a_const = A_CONST_INIT,
 												.ch1_ampl = CH1_AMPL_INIT,
-												.b_const = CH2_AMPL_INIT};
+												.b_const = B_CONST_INIT};
 
 	// Pavel's config stuff - don not understand so do not touch. Seems important to have a CPU.
 	memset(&param, 0, sizeof(param));
@@ -136,7 +136,7 @@ int main ()
 	}
 
 	listen(sock_server, 1024);
-
+	printf("hit first while");
 	while(!interrupted)
 	{
 		/* set channel parameters */
@@ -144,7 +144,7 @@ int main ()
 		*a_const = current_config.a_const;
 		*ch1_ampl = current_config.ch1_ampl;
 		*b_const = current_config.b_const;
-
+		printf("params set");
 		/* enter reset mode */
 		reset_due = false;
 		*rx_rst &= ~1;
@@ -167,12 +167,12 @@ int main ()
 		*rx_rst |= 3;
 
 		limit = 32*1024;
-
+		printf("hit second while");
 		while(!reset_due)
 		{
 			/* read ram writer position */ 
 			position = *rx_cntr;
-			printf("ram_writer read");
+
 
 			/* send 256 kB if ready, otherwise sleep 0.1 ms */
 			if((limit > 0 && position > limit) || (limit == 0 && position < 32*1024))
@@ -181,7 +181,7 @@ int main ()
 				limit = limit > 0 ? 0 : 32*1024;
 				printf("ready to send");
 				if(send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL) < 0) break;
-				printf("sent")
+				printf("sent");
 			}
 			else
 			{
