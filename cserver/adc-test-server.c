@@ -136,16 +136,16 @@ int main ()
 	}
 
 	listen(sock_server, 1024);
-	printf("hit first while\n");
+	//printf("hit first while\n");
 	while(!interrupted)
 	{
 		/* set channel parameters */
 		*ch1_increment = (uint32_t)floor(current_config.ch1_freq / 125.0e6 * (1<<30) + 0.5);
 		*a_const = current_config.a_const;
-		printf("%d a constant\n", current_config.a_const);
+		//printf("%d a constant\n", current_config.a_const);
 		*ch1_ampl = current_config.ch1_ampl;
 		*b_const = current_config.b_const;
-		printf("params set\n");
+		//printf("params set\n");
 		/* enter reset mode */
 		reset_due = false;
 		*rx_rst &= ~1;
@@ -153,7 +153,7 @@ int main ()
 		*rx_rst &= ~2;
 		/* set sample rate */
 		*rx_rate = current_config.CIC_divider;
-		printf("reset complete\n");
+		//printf("reset complete\n");
 
 		
 
@@ -168,9 +168,10 @@ int main ()
 		
 		/* enter normal operating mode */
 		*rx_rst |= 3;
-		printf("back in normal operating mode\n");
+		//printf("back in normal operating mode\n");
 		limit = 32*1024;
-		printf("hit second while\n");
+		//printf("hit second while\n");
+		
 		while(!reset_due)
 		{
 			/* read ram writer position */ 
@@ -182,9 +183,8 @@ int main ()
 			{
 				offset = limit > 0 ? 0 : 256*1024;
 				limit = limit > 0 ? 0 : 32*1024;
-				printf("ready to send\n");
 				if(send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL) < 0) break;
-				printf("sent\n");
+				//printf("sent\n");
 			}
 			else
 			{
@@ -235,7 +235,7 @@ int main ()
 					
 					if (fetched_config.ch1_ampl != current_config.ch1_ampl)
 					{
-						if (fetched_config.ch1_ampl < 35536)
+						if (fetched_config.ch1_ampl < 33000)
 						{
 							current_config.ch1_ampl = fetched_config.ch1_ampl;
 							reset_due = true;
@@ -264,6 +264,7 @@ int main ()
 				usleep(100);
 			}
 		}
+		
 		signal(SIGINT, SIG_DFL);
 		close(sock_client);
 	}
