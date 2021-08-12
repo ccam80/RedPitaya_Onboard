@@ -21,7 +21,7 @@
 
 // Starting RP Config
 #define CH1_AMPL_INIT 32000				// Almost max
-#define CH1_FREQ_INIT 1					// 1Hz
+#define CH1_FREQ_INIT 65536					// 1Hz
 #define A_CONST_INIT 1				// Almost max
 #define B_CONST_INIT 0					// 1Hz
 #define SAMPLING_DIVIDER_INIT 1250  	// 100 kHz
@@ -57,7 +57,7 @@ int main ()
 	int config_error = -10;
 	bool reset_due = false;
 
-	config_t fetched_config, current_config = {.CIC_divider = SAMPLING_DIVIDER_INIT,
+	config_t fetched_config, current_config = 	{.CIC_divider = SAMPLING_DIVIDER_INIT,
 					    						.ch1_freq = CH1_FREQ_INIT,
 												.a_const = A_CONST_INIT,
 												.ch1_ampl = CH1_AMPL_INIT,
@@ -199,6 +199,7 @@ int main ()
 						else {
 							// Tell GUI that the numbers are wrong somehow
 							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+							reset_due = true;
 						}
 					}
 		 			
@@ -212,6 +213,7 @@ int main ()
 						else {
 							// Tell GUI that the numbers are wrong somehow
 							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+							reset_due = true;
 						}
 					}
 
@@ -225,12 +227,13 @@ int main ()
 						else {
 							// Tell GUI that the numbers are wrong somehow
 							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+							reset_due = true;
 						}
 					}
 					
 					if (fetched_config.ch1_ampl != current_config.ch1_ampl)
 					{
-						if (fetched_config.ch1_ampl < 32766)
+						if (fetched_config.ch1_ampl < 4294967295)
 						{
 							current_config.ch1_ampl = fetched_config.ch1_ampl;
 							reset_due = true;
@@ -238,6 +241,7 @@ int main ()
 						else {
 							// Tell GUI that the numbers are wrong somehow
 							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+							reset_due = true;
 						}
 					}
 
@@ -251,6 +255,7 @@ int main ()
 						else {
 							// Tell GUI that the numbers are wrong somehow
 							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+							reset_due = true;
 						}
 					}
 				} 
