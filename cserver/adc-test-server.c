@@ -153,6 +153,7 @@ int main ()
 		*rx_rst &= ~2;
 		/* set sample rate */
 		*rx_rate = current_config.CIC_divider;
+		printf("reset complete\n");
 
 		
 
@@ -161,12 +162,13 @@ int main ()
 			perror("accept\n");
 			return EXIT_FAILURE;
 		}
+		printf("sock client accepted\n");
 
 		signal(SIGINT, signal_handler);
-
+		
 		/* enter normal operating mode */
 		*rx_rst |= 3;
-
+		printf("back in normal operating mode\n");
 		limit = 32*1024;
 		printf("hit second while\n");
 		while(!reset_due)
@@ -219,7 +221,7 @@ int main ()
 
 					if (fetched_config.a_const != current_config.a_const)
 					{
-						if (fetched_config.a_const < 32000)
+						if (fetched_config.a_const < 4294967295)
 						{
 							current_config.a_const = fetched_config.a_const;
 							reset_due = true;
@@ -233,7 +235,7 @@ int main ()
 					
 					if (fetched_config.ch1_ampl != current_config.ch1_ampl)
 					{
-						if (fetched_config.ch1_ampl < 4294967295)
+						if (fetched_config.ch1_ampl < 35536)
 						{
 							current_config.ch1_ampl = fetched_config.ch1_ampl;
 							reset_due = true;
