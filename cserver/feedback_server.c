@@ -142,7 +142,7 @@ int main ()
 		/* set channel parameters */
 		*ch1_increment = (uint32_t)floor(current_config.ch1_freq / 125.0e6 * (1<<30) + 0.5);
 		*a_const = current_config.a_const;
-		//printf("%d a constant\n", current_config.a_const);
+		printf("%d a constant\n", current_config.a_const);
 		*ch1_ampl = current_config.ch1_ampl;
 		*b_const = current_config.b_const;
 		//printf("params set\n");
