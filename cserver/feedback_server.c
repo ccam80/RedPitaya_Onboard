@@ -20,7 +20,7 @@
 #define CMA_ALLOC _IOWR('Z', 0, uint32_t)
 
 // Starting RP Config
-#define CH1_AMPL_INIT 32000				// Almost max
+#define DURATION_INIT 1				// Almost max
 #define CH1_FREQ_INIT 65536					// 1Hz
 #define A_CONST_INIT 1				// Almost max
 #define B_CONST_INIT 0					// 1Hz
@@ -29,10 +29,13 @@
 int interrupted = 0;
 
 typedef struct config_struct {
+	uint8_t status;
 	uint16_t CIC_divider;
-	uint32_t ch1_freq;
+	uint32_t fixed_freq;
+	uint16_t start_freq;
+	uint16_t stop_freq;
 	uint32_t a_const;
-	uint16_t ch1_ampl;
+	uint16_t duration;
 	uint16_t b_const;
 } config_t;
 
@@ -45,8 +48,8 @@ int main ()
 {
 	int fd, sock_server, sock_client;
 	int position, limit, offset;
-	volatile uint32_t *rx_addr, *rx_cntr, *ch1_increment, *a_const;
-	volatile uint16_t *rx_rate, *ch1_ampl, *b_const;
+	volatile uint32_t *rx_addr, *rx_cntr, *a_const, *fixed_phase;
+	volatile uint16_t *rx_rate, *start_freq, *stop_freq, *duration, *b_const;
 	volatile uint8_t *rx_rst;
 	volatile void *cfg, *sts, *ram;
 	cpu_set_t mask;
@@ -58,15 +61,19 @@ int main ()
 	bool reset_due = false;
 
 	config_t fetched_config, current_config = 	{.CIC_divider = SAMPLING_DIVIDER_INIT,
-					    						.ch1_freq = CH1_FREQ_INIT,
+					    						.fixed_freq = CH1_FREQ_INIT,
+												.start_freq = 0,
+												.stop_freq = 0,
 												.a_const = A_CONST_INIT,
-												.ch1_ampl = CH1_AMPL_INIT,
+												.duration = 1,
 												.b_const = B_CONST_INIT};
 
-	// Pavel's config stuff - don not understand so do not touch. Seems important to have a CPU.
-	memset(&param, 0, sizeof(param));
-	param.sched_priority = sched_get_priority_max(SCHED_FIFO);
-	sched_setscheduler(0, SCHED_FIFO, &param);
+	// Pavel's config stuff - do not understand so do not touch. 
+	memset(&param, 0, sizeof(param));     						// Initialize memory of scheduler parameter block to 0?
+	param.sched_priority = sched_get_priority_max(SCHED_FIFO);  // Set max priority for FIFO buffer?
+	sched_setscheduler(0, SCHED_FIFO, &param);					// Set scheduler with sched priority
+	
+	//Pick CPU
 	CPU_ZERO(&mask);
 	CPU_SET(1, &mask);
 	sched_setaffinity(0, sizeof(cpu_set_t), &mask);
@@ -90,7 +97,7 @@ int main ()
 		return EXIT_FAILURE;
 	}
 
-	// This seems important... PD's code relating to contiguous data section
+	// PD's code relating to contiguous data section
 	size = 128*sysconf(_SC_PAGESIZE);
 	if(ioctl(fd, CMA_ALLOC, &size) < 0)
 	{
@@ -105,12 +112,17 @@ int main ()
 	rx_rst = (uint8_t *)(cfg + 0);
 	rx_rate = (uint16_t *)(cfg + 2);
 	rx_addr = (uint32_t *)(cfg + 4);
-	ch1_ampl = (uint16_t *)(cfg + 16);
-	ch1_increment = (uint32_t *)(cfg + 8);
-	b_const = (uint16_t *)(cfg + 18);
-	a_const = (uint32_t *)(cfg + 12);
 	rx_cntr = (uint32_t *)(sts + 12);
-
+	
+	//Customisable parameter space
+	fixed_phase = (uint32_t *)(cfg + 8);
+	start_freq = (uint16_t *)(cfg + 8);
+	stop_freq = (uint16_t *)(cfg + 10);
+	a_const = (uint32_t *)(cfg + 12);
+	duration = (uint16_t *)(cfg + 16);
+	b_const = (uint16_t *)(cfg + 18);
+	
+	
 	// PD's assignment - think this sets current read address at top of section
 	*rx_addr = size;
 
@@ -140,10 +152,21 @@ int main ()
 	while(!interrupted)
 	{
 		/* set channel parameters */
-		*ch1_increment = (uint32_t)floor(current_config.ch1_freq / 125.0e6 * (1<<30) + 0.5);
+		
+		//Shared addresses toggled using status bit
+		if (current_config.status & 1)
+		{
+			*fixed_phase = (uint32_t)floor(current_config.ch1_freq / 125.0e6 * (1<<30) + 0.5);
+		} else 
+		{
+			*start_freq = current_config.start_freq;
+			*stop_freq = current_config.stop_freq;
+		}
+		
+		//Non shared parameters and reset handling	
+		// printf("%d a constant\n", current_config.a_const);
+		*duration = current_config.duration;
 		*a_const = current_config.a_const;
-		printf("%d a constant\n", current_config.a_const);
-		*ch1_ampl = current_config.ch1_ampl;
 		*b_const = current_config.b_const;
 		//printf("params set\n");
 		/* enter reset mode */
@@ -153,7 +176,7 @@ int main ()
 		*rx_rst &= ~2;
 		/* set sample rate */
 		*rx_rate = current_config.CIC_divider;
-		//printf("reset complete\n");
+		printf("reset complete\n");
 
 		
 
@@ -186,10 +209,16 @@ int main ()
 				if(send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL) < 0) break;
 				//printf("sent\n");
 			}
+			
+			// Check for settings if not busy sending data
 			else
-			{
+			{	
+				// For each field, check number makes sense and save to current config
 				while(recv(sock_client, &fetched_config, sizeof(config_t), MSG_DONTWAIT) > 0)
-				{
+				{	
+					//TODO: Tidy away this into a function or some looping structure because it's unweildy
+					// Is this a waste of time? Why not just overwrite the whole struct... - 9 assignments is minimal overhead
+					// Sampling rate divider
 					if (fetched_config.CIC_divider != current_config.CIC_divider &
 					fetched_config.CIC_divider < 6250)
 					{
@@ -205,11 +234,12 @@ int main ()
 						}
 					}
 		 			
-					if (fetched_config.ch1_freq != current_config.ch1_freq)
+		 			// Fixed phase
+					if (fetched_config.fixed_freq != current_config.fixed_freq)
 					{
-						if (fetched_config.ch1_freq < 61440000)
+						if (fetched_config.fixed_freq < 61440000)
 						{
-							current_config.ch1_freq = fetched_config.ch1_freq;
+							current_config.fixed_freq = fetched_config.fixed_freq;
 							reset_due = true;
 						}
 						else {
@@ -218,7 +248,53 @@ int main ()
 							reset_due = true;
 						}
 					}
-
+					
+					// Start Freq
+					if (fetched_config.start_freq != current_config.start_freq)
+					{
+						if (fetched_config.start_freq < 65536)
+						{
+							current_config.start_freq = fetched_config.start_freq;
+							reset_due = true;
+						}
+						else {
+							// Tell GUI that the numbers are wrong somehow
+							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+							reset_due = true;
+						}
+					}
+					
+					//Stop Freq
+					if (fetched_config.stop_freq != current_config.stop_freq)
+					{
+						if (fetched_config.stop_freq < 65536)
+						{
+							current_config.stop_freq = fetched_config.stop_freq;
+							reset_due = true;
+						}
+						else {
+							// Tell GUI that the numbers are wrong somehow
+							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+							reset_due = true;
+						}
+					}
+					
+					//Duration
+					if (fetched_config.duration != current_config.duration)
+					{
+						if (fetched_config.duration < 300)
+						{
+							current_config.duration = fetched_config.duration;
+							reset_due = true;
+						}
+						else {
+							// Tell GUI that the numbers are wrong somehow
+							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+							reset_due = true;
+						}
+					}
+					
+					// Multiplication constant (float)
 					if (fetched_config.a_const != current_config.a_const)
 					{
 						if (fetched_config.a_const < 4294967295)
@@ -233,20 +309,8 @@ int main ()
 						}
 					}
 					
-					if (fetched_config.ch1_ampl != current_config.ch1_ampl)
-					{
-						if (fetched_config.ch1_ampl < 33000)
-						{
-							current_config.ch1_ampl = fetched_config.ch1_ampl;
-							reset_due = true;
-						}
-						else {
-							// Tell GUI that the numbers are wrong somehow
-							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
-							reset_due = true;
-						}
-					}
-
+					
+					// addition constant
 					if (fetched_config.b_const != current_config.b_const)
 					{
 						if (fetched_config.b_const < 32766)
