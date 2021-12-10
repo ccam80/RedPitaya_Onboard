@@ -25,17 +25,18 @@
 #define A_CONST_INIT 1				// Almost max
 #define B_CONST_INIT 0					// 1Hz
 #define SAMPLING_DIVIDER_INIT 1250  	// 100 kHz
+#define MODE_MASK 192
 
 int interrupted = 0;
 
 typedef struct config_struct {
-	uint8_t status;
+	uint8_t mode;
 	uint16_t CIC_divider;
 	uint32_t fixed_freq;
-	uint16_t start_freq;
-	uint16_t stop_freq;
+	uint32_t start_freq;
+	uint32_t stop_freq;
 	uint32_t a_const;
-	uint16_t duration;
+	uint32_t interval;
 	uint16_t b_const;
 } config_t;
 
@@ -48,8 +49,8 @@ int main ()
 {
 	int fd, sock_server, sock_client;
 	int position, limit, offset;
-	volatile uint32_t *rx_addr, *rx_cntr, *a_const, *fixed_phase;
-	volatile uint16_t *rx_rate, *start_freq, *stop_freq, *duration, *b_const;
+	volatile uint32_t *rx_addr, *rx_cntr, *a_const, *fixed_phase, *start_freq, *stop_freq, *interval;
+	volatile uint16_t *rx_rate, *b_const;
 	volatile uint8_t *rx_rst;
 	volatile void *cfg, *sts, *ram;
 	cpu_set_t mask;
@@ -60,7 +61,8 @@ int main ()
 	int config_error = -10;
 	bool reset_due = false;
 
-	config_t fetched_config, current_config = 	{.CIC_divider = SAMPLING_DIVIDER_INIT,
+	config_t fetched_config, current_config = 	{.state = 1,
+												.CIC_divider = SAMPLING_DIVIDER_INIT,
 					    						.fixed_freq = CH1_FREQ_INIT,
 												.start_freq = 0,
 												.stop_freq = 0,
@@ -153,21 +155,32 @@ int main ()
 	{
 		/* set channel parameters */
 		
-		//Shared addresses toggled using status bit
-		if (current_config.status & 1)
+		//Shared addresses toggled using mode bit
+		if (current_config.mode == 0)
 		{
 			*fixed_phase = (uint32_t)floor(current_config.ch1_freq / 125.0e6 * (1<<30) + 0.5);
-		} else 
+			*rx_rst = (uint8_t)((*rx_rst & !MODE_MASK) | mode);
+		} 
+		else if (current_config.mode == 1)
 		{
 			*start_freq = current_config.start_freq;
 			*stop_freq = current_config.stop_freq;
+			*interval = current_config.interval;
+			*rx_rst = (uint8_t)((*rx_rst & !MODE_MASK) | mode);
+		} 
+		else if (current_config.mode == 2)
+		{
+			*a_const = current_config.a_const;
+			*b_const = current_config.b_const;
+			*rx_rst = (uint8_t)((*rx_rst & !MODE_MASK) | mode);
 		}
+		
 		
 		//Non shared parameters and reset handling	
 		// printf("%d a constant\n", current_config.a_const);
-		*duration = current_config.duration;
-		*a_const = current_config.a_const;
-		*b_const = current_config.b_const;
+		
+		
+		
 		//printf("params set\n");
 		/* enter reset mode */
 		reset_due = false;
@@ -252,7 +265,7 @@ int main ()
 					// Start Freq
 					if (fetched_config.start_freq != current_config.start_freq)
 					{
-						if (fetched_config.start_freq < 65536)
+						if (fetched_config.start_freq < 2000000)
 						{
 							current_config.start_freq = fetched_config.start_freq;
 							reset_due = true;
@@ -267,7 +280,7 @@ int main ()
 					//Stop Freq
 					if (fetched_config.stop_freq != current_config.stop_freq)
 					{
-						if (fetched_config.stop_freq < 65536)
+						if (fetched_config.stop_freq < 2000000)
 						{
 							current_config.stop_freq = fetched_config.stop_freq;
 							reset_due = true;
@@ -280,11 +293,11 @@ int main ()
 					}
 					
 					//Duration
-					if (fetched_config.duration != current_config.duration)
+					if (fetched_config.interval != current_config.interval)
 					{
-						if (fetched_config.duration < 300)
+						if (fetched_config.interval < 25000000)
 						{
-							current_config.duration = fetched_config.duration;
+							current_config.interval = fetched_config.interval;
 							reset_due = true;
 						}
 						else {
