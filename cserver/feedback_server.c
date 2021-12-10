@@ -61,13 +61,13 @@ int main ()
 	int config_error = -10;
 	bool reset_due = false;
 
-	config_t fetched_config, current_config = 	{.state = 1,
+	config_t fetched_config, current_config = 	{.mode = 1,
 												.CIC_divider = SAMPLING_DIVIDER_INIT,
 					    						.fixed_freq = CH1_FREQ_INIT,
 												.start_freq = 0,
 												.stop_freq = 0,
 												.a_const = A_CONST_INIT,
-												.duration = 1,
+												.interval = 1,
 												.b_const = B_CONST_INIT};
 
 	// Pavel's config stuff - do not understand so do not touch. 
@@ -118,10 +118,10 @@ int main ()
 	
 	//Customisable parameter space
 	fixed_phase = (uint32_t *)(cfg + 8);
-	start_freq = (uint16_t *)(cfg + 8);
-	stop_freq = (uint16_t *)(cfg + 10);
+	start_freq = (uint32_t *)(cfg + 8);
+	stop_freq = (uint32_t *)(cfg + 10);
 	a_const = (uint32_t *)(cfg + 12);
-	duration = (uint16_t *)(cfg + 16);
+	interval = (uint32_t *)(cfg + 16);
 	b_const = (uint16_t *)(cfg + 18);
 	
 	
@@ -159,20 +159,20 @@ int main ()
 		if (current_config.mode == 0)
 		{
 			*fixed_phase = (uint32_t)floor(current_config.ch1_freq / 125.0e6 * (1<<30) + 0.5);
-			*rx_rst = (uint8_t)((*rx_rst & !MODE_MASK) | mode);
+			*rx_rst = (uint8_t)((*rx_rst & !MODE_MASK) | (current_config.mode << 7));
 		} 
 		else if (current_config.mode == 1)
 		{
 			*start_freq = current_config.start_freq;
 			*stop_freq = current_config.stop_freq;
 			*interval = current_config.interval;
-			*rx_rst = (uint8_t)((*rx_rst & !MODE_MASK) | mode);
+			*rx_rst = (uint8_t)((*rx_rst & !MODE_MASK) | (current_config.mode << 7);
 		} 
 		else if (current_config.mode == 2)
 		{
 			*a_const = current_config.a_const;
 			*b_const = current_config.b_const;
-			*rx_rst = (uint8_t)((*rx_rst & !MODE_MASK) | mode);
+			*rx_rst = (uint8_t)((*rx_rst & !MODE_MASK) | (current_config.mode << 7));
 		}
 		
 		
@@ -292,7 +292,7 @@ int main ()
 						}
 					}
 					
-					//Duration
+					//Interval
 					if (fetched_config.interval != current_config.interval)
 					{
 						if (fetched_config.interval < 25000000)
