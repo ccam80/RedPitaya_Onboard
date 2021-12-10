@@ -21,7 +21,7 @@
 
 // Starting RP Config
 #define DURATION_INIT 1				// Almost max
-#define CH1_FREQ_INIT 65536					// 1Hz
+#define FIXED_FREQ_INIT 65536					// 1Hz
 #define A_CONST_INIT 1				// Almost max
 #define B_CONST_INIT 0					// 1Hz
 #define SAMPLING_DIVIDER_INIT 1250  	// 100 kHz
@@ -63,7 +63,7 @@ int main ()
 
 	config_t fetched_config, current_config = 	{.mode = 1,
 												.CIC_divider = SAMPLING_DIVIDER_INIT,
-					    						.fixed_freq = CH1_FREQ_INIT,
+					    						.fixed_freq = FIXED_FREQ_INIT,
 												.start_freq = 0,
 												.stop_freq = 0,
 												.a_const = A_CONST_INIT,
@@ -158,7 +158,7 @@ int main ()
 		//Shared addresses toggled using mode bit
 		if (current_config.mode == 0)
 		{
-			*fixed_phase = (uint32_t)floor(current_config.ch1_freq / 125.0e6 * (1<<30) + 0.5);
+			*fixed_phase = (uint32_t)floor(current_config.fixed_freq / 125.0e6 * (1<<30) + 0.5);
 			*rx_rst = (uint8_t)((*rx_rst & !MODE_MASK) | (current_config.mode << 7));
 		} 
 		else if (current_config.mode == 1)
@@ -166,7 +166,7 @@ int main ()
 			*start_freq = current_config.start_freq;
 			*stop_freq = current_config.stop_freq;
 			*interval = current_config.interval;
-			*rx_rst = (uint8_t)((*rx_rst & !MODE_MASK) | (current_config.mode << 7);
+			*rx_rst = (uint8_t)((*rx_rst & !MODE_MASK) | (current_config.mode << 7));
 		} 
 		else if (current_config.mode == 2)
 		{
