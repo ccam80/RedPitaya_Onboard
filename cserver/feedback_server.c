@@ -161,6 +161,7 @@ int main ()
 		{
 			*fixed_phase = (uint32_t)floor(current_config.fixed_freq / 125.0e6 * (1<<30) + 0.5);
 			*state = (uint8_t)(current_config.mode);
+			printf("State changed to %d\n", current_config.mode);
 		} 
 		else if (current_config.mode == 1)
 		{
@@ -168,14 +169,16 @@ int main ()
 			*stop_freq = current_config.stop_freq;
 			*interval = current_config.interval;
 			*state = (uint8_t)(current_config.mode);
+			printf("State changed to %d\n", current_config.mode);
 		} 
 		else if (current_config.mode == 2)
 		{
 			*a_const = current_config.a_const;
 			*b_const = current_config.b_const;
 			*state = (uint8_t)(current_config.mode);
+			printf("State changed to %d\n", current_config.mode);
 		}
-		
+				
 		
 		//Non shared parameters and reset handling	
 		// printf("%d a constant\n", current_config.a_const);
