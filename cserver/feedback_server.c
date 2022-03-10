@@ -51,7 +51,7 @@ int main ()
 	int position, limit, offset;
 	volatile uint32_t *rx_addr, *rx_cntr, *a_const, *fixed_phase, *start_freq, *stop_freq, *interval;
 	volatile uint16_t *rx_rate, *b_const;
-	volatile uint8_t *rx_rst, *state;
+	volatile uint8_t *rx_rst;
 	volatile void *cfg, *sts, *ram;
 	cpu_set_t mask;
 	struct sched_param param;
@@ -342,7 +342,7 @@ int main ()
 						}
 					}
 					
-					// addition constant
+					// mode
 					if (fetched_config.mode != current_config.mode)
 					{
 						if (fetched_config.mode < 4)
@@ -356,6 +356,8 @@ int main ()
 							reset_due = true;
 						}
 					}
+					
+					
 				} 
 				usleep(100);
 			}
