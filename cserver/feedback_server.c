@@ -120,7 +120,7 @@ int main ()
 	//Customisable parameter space
 	fixed_phase = (uint32_t *)(cfg + 8);
 	start_freq = (uint32_t *)(cfg + 8);
-	stop_freq = (uint32_t *)(cfg + 10);
+	stop_freq = (uint32_t *)(cfg + 12);
 	a_const = (uint32_t *)(cfg + 12);
 	interval = (uint32_t *)(cfg + 16);
 	b_const = (uint16_t *)(cfg + 18);
