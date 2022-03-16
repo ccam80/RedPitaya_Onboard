@@ -179,23 +179,23 @@ int main ()
 			printf("State changed to %d\n", current_config.mode);
 		}
 				
-		printf("fetched config: \n"
-							"state: %d\n"
-							"CIC_divider: %d\n"
-							"fixed_freq: %d\n"
-							"start_freq: %d\n"
-							"stop_freq: %d\n"
-							"a_const: %d\n"
-							"b_const: %d\n"
-							"interval: %d\n",
-							(*rx_rst & MODE_MASK) >> 6,
-							*rx_rate,
-							*fixed_phase,
-							*start_freq,
-							*stop_freq,
-							*a_const,
-							*b_const,
-							*interval);
+		printf("Saved config: \n"
+				"state: %d\n"
+				"CIC_divider: %d\n"
+				"fixed_freq: %d\n"
+				"start_freq: %d\n"
+				"stop_freq: %d\n"
+				"a_const: %d\n"
+				"b_const: %d\n"
+				"interval: %d\n",
+				(*rx_rst & MODE_MASK) >> 6,
+				*rx_rate,
+				*fixed_phase,
+				*start_freq,
+				*stop_freq,
+				*a_const,
+				*b_const,
+				*interval);
 		//Non shared parameters and reset handling	
 		// printf("%d a constant\n", current_config.a_const);
 		
