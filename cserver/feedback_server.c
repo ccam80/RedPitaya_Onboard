@@ -162,7 +162,6 @@ int main ()
 			*fixed_phase = (uint32_t)floor(current_config.fixed_freq / 125.0e6 * (1<<30) + 0.5);
 			*rx_rst = (uint8_t)(*rx_rst & (~MODE_MASK) | (current_config.mode << 6));
 			printf("State changed to %d\n", current_config.mode);
-			printf("Reset byte: %d\n", *rx_rst);
 		} 
 		else if (current_config.mode == 1)
 		{
@@ -171,7 +170,6 @@ int main ()
 			*interval = current_config.interval;
 			*rx_rst = (uint8_t)(*rx_rst & (~MODE_MASK) | (current_config.mode << 6));
 			printf("State changed to %d\n", current_config.mode);
-			printf("Reset byte: %d\n", *rx_rst);
 		} 
 		else if (current_config.mode == 2)
 		{
@@ -179,10 +177,25 @@ int main ()
 			*b_const = current_config.b_const;
 			*rx_rst = (uint8_t)(*rx_rst & (~MODE_MASK) | (current_config.mode << 6));
 			printf("State changed to %d\n", current_config.mode);
-			printf("Reset byte: %d\n", *rx_rst);
 		}
 				
-		
+		printf("fetched config: \n"
+							"state: %d\n"
+							"CIC_divider: %d\n"
+							"fixed_freq: %d\n"
+							"start_freq: %d\n"
+							"stop_freq: %d\n"
+							"a_const: %d\n"
+							"b_const: %d\n"
+							"interval: %d\n",
+							(*rx_rst & MODE_MASK) >> 6,
+							*rx_rate,
+							*fixed_phase,
+							*start_freq,
+							*stop_freq,
+							*a_const,
+							*b_const,
+							*interval);
 		//Non shared parameters and reset handling	
 		// printf("%d a constant\n", current_config.a_const);
 		
@@ -239,6 +252,28 @@ int main ()
 					//TODO: Tidy away this into a function or some looping structure because it's unweildy
 					// Is this a waste of time? Why not just overwrite the whole struct... - 9 assignments is minimal overhead
 					// Sampling rate divider
+					
+					//Print all fetched config
+					printf("fetched config: \n"
+							"state: %d\n"
+							"CIC_divider: %d\n"
+							"fixed_freq: %d\n"
+							"start_freq: %d\n"
+							"stop_freq: %d\n"
+							"a_const: %d\n"
+							"b_const: %d\n"
+							"interval: %d\n",
+							fetched_config.mode,
+							fetched_config.CIC_divider,
+							fetched_config.fixed_freq,
+							fetched_config.start_freq,
+							fetched_config.stop_freq,
+							fetched_config.a_const,
+							fetched_config.b_const,
+							fetched_config.interval);
+					
+					
+					
 					if (fetched_config.CIC_divider != current_config.CIC_divider &
 					fetched_config.CIC_divider < 6250)
 					{
