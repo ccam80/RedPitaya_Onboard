@@ -162,6 +162,7 @@ int main ()
 			*fixed_phase = (uint32_t)floor(current_config.fixed_freq / 125.0e6 * (1<<30) + 0.5);
 			*rx_rst = (uint8_t)(*rx_rst & (~MODE_MASK) | (current_config.mode << 6));
 			printf("State changed to %d\n", current_config.mode);
+			printf("Reset byte: %d\n", *rx_rst);
 		} 
 		else if (current_config.mode == 1)
 		{
@@ -170,6 +171,7 @@ int main ()
 			*interval = current_config.interval;
 			*rx_rst = (uint8_t)(*rx_rst & (~MODE_MASK) | (current_config.mode << 6));
 			printf("State changed to %d\n", current_config.mode);
+			printf("Reset byte: %d\n", *rx_rst);
 		} 
 		else if (current_config.mode == 2)
 		{
@@ -177,6 +179,7 @@ int main ()
 			*b_const = current_config.b_const;
 			*rx_rst = (uint8_t)(*rx_rst & (~MODE_MASK) | (current_config.mode << 6));
 			printf("State changed to %d\n", current_config.mode);
+			printf("Reset byte: %d\n", *rx_rst);
 		}
 				
 		
