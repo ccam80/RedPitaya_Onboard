@@ -160,7 +160,7 @@ int main ()
 		if (current_config.mode == 0)
 		{
 			*fixed_phase = (uint32_t)floor(current_config.fixed_freq / 125.0e6 * (1<<30) + 0.5);
-			*rx_rst = (uint8_t)(*rx_rst & (~MODE_MASK) | (current_config.mode << 6));
+			*rx_rst = (uint8_t)((*rx_rst & (~MODE_MASK)) | (current_config.mode << 6));
 			printf("State changed to %d\n", current_config.mode);
 		} 
 		else if (current_config.mode == 1)
@@ -168,14 +168,14 @@ int main ()
 			*start_freq = current_config.start_freq;
 			*stop_freq = current_config.stop_freq;
 			*interval = current_config.interval;
-			*rx_rst = (uint8_t)(*rx_rst & (~MODE_MASK) | (current_config.mode << 6));
+			*rx_rst = (uint8_t)((*rx_rst & (~MODE_MASK)) | (current_config.mode << 6));
 			printf("State changed to %d\n", current_config.mode);
 		} 
 		else if (current_config.mode == 2)
 		{
 			*a_const = current_config.a_const;
 			*b_const = current_config.b_const;
-			*rx_rst = (uint8_t)(*rx_rst & (~MODE_MASK) | (current_config.mode << 6));
+			*rx_rst = (uint8_t)((*rx_rst & (~MODE_MASK)) | (current_config.mode << 6));
 			printf("State changed to %d\n", current_config.mode);
 		}
 				
