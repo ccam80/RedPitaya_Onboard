@@ -237,6 +237,7 @@ int main ()
 			if (trigger)
 			{
 				// Enable RAM writer and CIC divider, send "go" signal to GUI
+				printf("Triggered");
 				if (~*rx_rst & 3) {
 					*rx_rst |= 3;
 					if(send(sock_client, (void *)&YES, sizeof(YES), MSG_NOSIGNAL) < 0) break;
@@ -250,8 +251,8 @@ int main ()
 				{
 					offset = limit > 0 ? 0 : 256*1024;
 					limit = limit > 0 ? 0 : 32*1024;
+					// printf("sending\n");
 					if(send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL) < 0) break;
-					//printf("sent\n");
 				}
 			}
 			
