@@ -30,6 +30,7 @@
 int interrupted = 0;
 
 typedef struct config_struct {
+	uint8_t trigger;
 	uint8_t mode;
 	uint16_t CIC_divider;
 	uint32_t fixed_freq;
@@ -52,16 +53,18 @@ int main ()
 	volatile uint32_t *rx_addr, *rx_cntr, *a_const, *fixed_phase, *start_freq, *stop_freq, *interval;
 	volatile uint16_t *rx_rate, *b_const;
 	volatile uint8_t *rx_rst;
+	uint8_t trigger = 0;
 	volatile void *cfg, *sts, *ram;
 	cpu_set_t mask;
 	struct sched_param param;
 	struct sockaddr_in addr;
 	uint32_t size;
-	int yes = 1;
+	int YES = 1;
 	int config_error = -10;
 	bool reset_due = false;
 
-	config_t fetched_config, current_config = 	{.mode = 1,
+	config_t fetched_config, current_config = 	{.trigger = 0,
+												.mode = 1,
 												.CIC_divider = SAMPLING_DIVIDER_INIT,
 					    						.fixed_freq = FIXED_FREQ_INIT,
 												.start_freq = 0,
@@ -136,7 +139,7 @@ int main ()
 		return EXIT_FAILURE;
 	}
 
-	setsockopt(sock_server, SOL_SOCKET, SO_REUSEADDR, (void *)&yes, sizeof(yes));
+	setsockopt(sock_server, SOL_SOCKET, SO_REUSEADDR, (void *)&YES, sizeof(YES));
 
 	/* setup listening address */
 	memset(&addr, 0, sizeof(addr));
@@ -180,6 +183,7 @@ int main ()
 		}
 				
 		printf("Saved config: \n"
+				"trigger: %d \n"
 				"state: %d\n"
 				"CIC_divider: %d\n"
 				"fixed_freq: %d\n"
@@ -188,6 +192,7 @@ int main ()
 				"a_const: %d\n"
 				"b_const: %d\n"
 				"interval: %d\n",
+				trigger,
 				(*rx_rst & MODE_MASK) >> 6,
 				*rx_rate,
 				*fixed_phase,
@@ -223,25 +228,31 @@ int main ()
 		signal(SIGINT, signal_handler);
 		
 		/* enter normal operating mode */
-		*rx_rst |= 3;
-		//printf("back in normal operating mode\n");
+		
 		limit = 32*1024;
 		//printf("hit second while\n");
 		
 		while(!reset_due)
 		{
-			/* read ram writer position */ 
-			position = *rx_cntr;
-
-
-			/* send 256 kB if ready, otherwise sleep 0.1 ms */
-			if((limit > 0 && position > limit) || (limit == 0 && position < 32*1024))
+			if (trigger):
 			{
-				offset = limit > 0 ? 0 : 256*1024;
-				limit = limit > 0 ? 0 : 32*1024;
-				if(send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL) < 0) break;
-				//printf("sent\n");
-			}
+				// Enable RAM writer and CIC divider, send "go" signal to GUI
+				if (~*rx_rst & 3) {
+					*rx_rst |= 3;
+					if(send(sock_client, (void *)&YES, sizeof(YES), MSG_NOSIGNAL) < 0) break;
+				}
+				/* read ram writer position */ 
+				position = *rx_cntr;
+
+
+				/* send 256 kB if ready, otherwise sleep 0.1 ms */
+				if((limit > 0 && position > limit) || (limit == 0 && position < 32*1024))
+				{
+					offset = limit > 0 ? 0 : 256*1024;
+					limit = limit > 0 ? 0 : 32*1024;
+					if(send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL) < 0) break;
+					//printf("sent\n");
+				}
 			
 			// Check for settings if not busy sending data
 			else
@@ -255,6 +266,7 @@ int main ()
 					
 					//Print all fetched config
 					printf("fetched config: \n"
+							"trigger: %d\n"
 							"state: %d\n"
 							"CIC_divider: %d\n"
 							"fixed_freq: %d\n"
@@ -263,6 +275,7 @@ int main ()
 							"a_const: %d\n"
 							"b_const: %d\n"
 							"interval: %d\n",
+							fetched_config.trigger,
 							fetched_config.mode,
 							fetched_config.CIC_divider,
 							fetched_config.fixed_freq,
@@ -273,6 +286,10 @@ int main ()
 							fetched_config.interval);
 					
 					
+					if (fetched_config.trigger != current_config.trigger)
+					{
+						trigger = fetched_config.trigger;
+					}
 					
 					if (fetched_config.CIC_divider != current_config.CIC_divider &
 					fetched_config.CIC_divider < 6250)
