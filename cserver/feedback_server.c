@@ -234,7 +234,7 @@ int main ()
 		
 		while(!reset_due)
 		{
-			if (trigger):
+			if (trigger)
 			{
 				// Enable RAM writer and CIC divider, send "go" signal to GUI
 				if (~*rx_rst & 3) {
@@ -253,6 +253,7 @@ int main ()
 					if(send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL) < 0) break;
 					//printf("sent\n");
 				}
+			}
 			
 			// Check for settings if not busy sending data
 			else
