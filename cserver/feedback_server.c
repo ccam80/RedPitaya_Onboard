@@ -237,7 +237,7 @@ int main ()
 			if (trigger)
 			{
 				// Enable RAM writer and CIC divider, send "go" signal to GUI
-				printf("Triggered");
+				//printf("Triggered");
 				if (~*rx_rst & 3) {
 					*rx_rst |= 3;
 					if(send(sock_client, (void *)&YES, sizeof(YES), MSG_NOSIGNAL) < 0) break;
