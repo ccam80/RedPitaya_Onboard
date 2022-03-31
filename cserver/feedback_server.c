@@ -20,11 +20,11 @@
 #define CMA_ALLOC _IOWR('Z', 0, uint32_t)
 
 // Starting RP Config
-#define DURATION_INIT 1				// Almost max
 #define FIXED_FREQ_INIT 65536					// 1Hz
-#define A_CONST_INIT 1				// Almost max
-#define B_CONST_INIT 0					// 1Hz
+#define A_CONST_INIT 1			 
+#define B_CONST_INIT 0					
 #define SAMPLING_DIVIDER_INIT 1250  	// 100 kHz
+
 #define MODE_MASK 192
 
 int interrupted = 0;
@@ -50,6 +50,8 @@ int main ()
 {
 	int fd, sock_server, sock_client;
 	int position, limit, offset;
+
+	// Shared memory pointers
 	volatile uint32_t *rx_addr, *rx_cntr, *a_const, *fixed_phase, *start_freq, *stop_freq, *interval;
 	volatile uint16_t *rx_rate, *b_const;
 	volatile uint8_t *rx_rst;
@@ -63,6 +65,7 @@ int main ()
 	int config_error = -10;
 	bool reset_due = false;
 
+	// Initialise config structs - current and next
 	config_t fetched_config, current_config = 	{.trigger = 0,
 												.mode = 1,
 												.CIC_divider = SAMPLING_DIVIDER_INIT,
@@ -73,7 +76,7 @@ int main ()
 												.interval = 1,
 												.b_const = B_CONST_INIT};
 
-	// Pavel's config stuff - do not understand so do not touch. 
+	// Config from Pavel Demin's adc_test. Comments are my understanding of their function. 
 	memset(&param, 0, sizeof(param));     						// Initialize memory of scheduler parameter block to 0?
 	param.sched_priority = sched_get_priority_max(SCHED_FIFO);  // Set max priority for FIFO buffer?
 	sched_setscheduler(0, SCHED_FIFO, &param);					// Set scheduler with sched priority
@@ -129,7 +132,7 @@ int main ()
 	b_const = (uint16_t *)(cfg + 18);
 	
 	
-	// PD's assignment - think this sets current read address at top of section
+	// Sets current read address at top of section
 	*rx_addr = size;
 
 	// Configure Socket
@@ -154,7 +157,7 @@ int main ()
 	}
 
 	listen(sock_server, 1024);
-	//printf("hit first while\n");
+
 	while(!interrupted)
 	{
 		/* set channel parameters */
@@ -191,7 +194,7 @@ int main ()
 				"stop_freq: %d\n"
 				"a_const: %d\n"
 				"b_const: %d\n"
-				"interval: %d\n",
+				"interval: %d\n\n",
 				trigger,
 				(*rx_rst & MODE_MASK) >> 6,
 				*rx_rate,
@@ -201,11 +204,8 @@ int main ()
 				*a_const,
 				*b_const,
 				*interval);
+
 		//Non shared parameters and reset handling	
-		// printf("%d a constant\n", current_config.a_const);
-		
-		
-		
 		//printf("params set\n");
 		/* enter reset mode */
 		reset_due = false;
@@ -216,8 +216,7 @@ int main ()
 		*rx_rate = current_config.CIC_divider;
 		printf("reset complete\n");
 
-		
-
+		//Await connection from GUI
 		if((sock_client = accept(sock_server, NULL, NULL)) < 0)
 		{
 			perror("accept\n");
@@ -225,12 +224,13 @@ int main ()
 		}
 		printf("sock client accepted\n");
 
+		//Set up interrupt handler
 		signal(SIGINT, signal_handler);
 		
 		/* enter normal operating mode */
 		
+		// 32kb limit (functions as send "trigger")
 		limit = 32*1024;
-		//printf("hit second while\n");
 		
 		while(!reset_due)
 		{
@@ -242,9 +242,9 @@ int main ()
 					*rx_rst |= 3;
 					if(send(sock_client, (void *)&YES, sizeof(YES), MSG_NOSIGNAL) < 0) break;
 				}
+
 				/* read ram writer position */ 
 				position = *rx_cntr;
-
 
 				/* send 256 kB if ready, otherwise sleep 0.1 ms */
 				if((limit > 0 && position > limit) || (limit == 0 && position < 32*1024))
@@ -264,7 +264,6 @@ int main ()
 				{	
 					//TODO: Tidy away this into a function or some looping structure because it's unweildy
 					// Is this a waste of time? Why not just overwrite the whole struct... - 9 assignments is minimal overhead
-					// Sampling rate divider
 					
 					//Print all fetched config
 					printf("fetched config: \n"
@@ -276,7 +275,7 @@ int main ()
 							"stop_freq: %d\n"
 							"a_const: %d\n"
 							"b_const: %d\n"
-							"interval: %d\n",
+							"interval: %d\n\n",
 							fetched_config.trigger,
 							fetched_config.mode,
 							fetched_config.CIC_divider,
