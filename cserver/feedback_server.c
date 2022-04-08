@@ -26,6 +26,7 @@
 #define SAMPLING_DIVIDER_INIT 1250  	// 100 kHz
 
 #define MODE_MASK 192
+#define TRIG_MASK 4
 
 int interrupted = 0;
 
@@ -237,12 +238,13 @@ int main ()
 			if (trigger)
 			{
 				// Enable RAM writer and CIC divider, send "go" signal to GUI
-				//printf("Triggered");
+				// printf("Triggered");
 				if (~*rx_rst & 3) {
 					*rx_rst |= 3;
 					if(send(sock_client, (void *)&YES, sizeof(YES), MSG_NOSIGNAL) < 0) break;
 				}
 
+				*rx_rst |= TRIG_MASK;
 				/* read ram writer position */ 
 				position = *rx_cntr;
 
@@ -290,6 +292,10 @@ int main ()
 					if (fetched_config.trigger != current_config.trigger)
 					{
 						trigger = fetched_config.trigger;
+						if (trigger == 0)
+						{
+							*rx_rst &= ~TRIG_MASK;
+						}
 					}
 					
 					if (fetched_config.CIC_divider != current_config.CIC_divider &
