@@ -244,7 +244,9 @@ int main ()
 					if(send(sock_client, (void *)&YES, sizeof(YES), MSG_NOSIGNAL) < 0) break;
 				}
 
+				// Send trigger signal to FPGA
 				*rx_rst |= TRIG_MASK;
+
 				/* read ram writer position */ 
 				position = *rx_cntr;
 
@@ -259,169 +261,168 @@ int main ()
 			}
 			
 			// Check for settings if not busy sending data
-			else
+				
+			// For each field, check number makes sense and save to current config
+			while(recv(sock_client, &fetched_config, sizeof(config_t), MSG_DONTWAIT) > 0)
 			{	
-				// For each field, check number makes sense and save to current config
-				while(recv(sock_client, &fetched_config, sizeof(config_t), MSG_DONTWAIT) > 0)
-				{	
-					//TODO: Tidy away this into a function or some looping structure because it's unweildy
-					// Is this a waste of time? Why not just overwrite the whole struct... - 9 assignments is minimal overhead
-					
-					//Print all fetched config
-					printf("fetched config: \n"
-							"trigger: %d\n"
-							"state: %d\n"
-							"CIC_divider: %d\n"
-							"fixed_freq: %d\n"
-							"start_freq: %d\n"
-							"stop_freq: %d\n"
-							"a_const: %d\n"
-							"b_const: %d\n"
-							"interval: %d\n\n",
-							fetched_config.trigger,
-							fetched_config.mode,
-							fetched_config.CIC_divider,
-							fetched_config.fixed_freq,
-							fetched_config.start_freq,
-							fetched_config.stop_freq,
-							fetched_config.a_const,
-							fetched_config.b_const,
-							fetched_config.interval);
-					
-					
-					if (fetched_config.trigger != current_config.trigger)
+				//TODO: Tidy away this into a function or some looping structure because it's unweildy
+				// Is this a waste of time? Why not just overwrite the whole struct... - 9 assignments is minimal overhead
+				
+				//Print all fetched config
+				printf("fetched config: \n"
+						"trigger: %d\n"
+						"state: %d\n"
+						"CIC_divider: %d\n"
+						"fixed_freq: %d\n"
+						"start_freq: %d\n"
+						"stop_freq: %d\n"
+						"a_const: %d\n"
+						"b_const: %d\n"
+						"interval: %d\n\n",
+						fetched_config.trigger,
+						fetched_config.mode,
+						fetched_config.CIC_divider,
+						fetched_config.fixed_freq,
+						fetched_config.start_freq,
+						fetched_config.stop_freq,
+						fetched_config.a_const,
+						fetched_config.b_const,
+						fetched_config.interval);
+				
+				
+				if (fetched_config.trigger != current_config.trigger)
+				{
+					trigger = fetched_config.trigger;
+					if (trigger == 0)
 					{
-						trigger = fetched_config.trigger;
-						if (trigger == 0)
-						{
-							*rx_rst &= ~TRIG_MASK;
-						}
+						*rx_rst &= ~TRIG_MASK;
 					}
-					
-					if (fetched_config.CIC_divider != current_config.CIC_divider &
-					fetched_config.CIC_divider < 6250)
+				}
+				
+				if (fetched_config.CIC_divider != current_config.CIC_divider &
+				fetched_config.CIC_divider < 6250)
+				{
+					if (fetched_config.CIC_divider < 6250)
 					{
-						if (fetched_config.CIC_divider < 6250)
-						{
-							current_config.CIC_divider = fetched_config.CIC_divider;
-							reset_due = true;
-						}
-						else {
-							// Tell GUI that the numbers are wrong somehow
-							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
-							reset_due = true;
-						}
+						current_config.CIC_divider = fetched_config.CIC_divider;
+						reset_due = true;
 					}
-		 			
-		 			// Fixed phase
-					if (fetched_config.fixed_freq != current_config.fixed_freq)
+					else {
+						// Tell GUI that the numbers are wrong somehow
+						// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+						reset_due = true;
+					}
+				}
+				
+				// Fixed phase
+				if (fetched_config.fixed_freq != current_config.fixed_freq)
+				{
+					if (fetched_config.fixed_freq < 61440000)
 					{
-						if (fetched_config.fixed_freq < 61440000)
-						{
-							current_config.fixed_freq = fetched_config.fixed_freq;
-							reset_due = true;
-						}
-						else {
-							// Tell GUI that the numbers are wrong somehow
-							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
-							reset_due = true;
-						}
+						current_config.fixed_freq = fetched_config.fixed_freq;
+						reset_due = true;
 					}
-					
-					// Start Freq
-					if (fetched_config.start_freq != current_config.start_freq)
+					else {
+						// Tell GUI that the numbers are wrong somehow
+						// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+						reset_due = true;
+					}
+				}
+				
+				// Start Freq
+				if (fetched_config.start_freq != current_config.start_freq)
+				{
+					if (fetched_config.start_freq < 2000000)
 					{
-						if (fetched_config.start_freq < 2000000)
-						{
-							current_config.start_freq = fetched_config.start_freq;
-							reset_due = true;
-						}
-						else {
-							// Tell GUI that the numbers are wrong somehow
-							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
-							reset_due = true;
-						}
+						current_config.start_freq = fetched_config.start_freq;
+						reset_due = true;
 					}
-					
-					//Stop Freq
-					if (fetched_config.stop_freq != current_config.stop_freq)
+					else {
+						// Tell GUI that the numbers are wrong somehow
+						// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+						reset_due = true;
+					}
+				}
+				
+				//Stop Freq
+				if (fetched_config.stop_freq != current_config.stop_freq)
+				{
+					if (fetched_config.stop_freq < 2000000)
 					{
-						if (fetched_config.stop_freq < 2000000)
-						{
-							current_config.stop_freq = fetched_config.stop_freq;
-							reset_due = true;
-						}
-						else {
-							// Tell GUI that the numbers are wrong somehow
-							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
-							reset_due = true;
-						}
+						current_config.stop_freq = fetched_config.stop_freq;
+						reset_due = true;
 					}
-					
-					//Interval
-					if (fetched_config.interval != current_config.interval)
+					else {
+						// Tell GUI that the numbers are wrong somehow
+						// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+						reset_due = true;
+					}
+				}
+				
+				//Interval
+				if (fetched_config.interval != current_config.interval)
+				{
+					if (fetched_config.interval < 25000000)
 					{
-						if (fetched_config.interval < 25000000)
-						{
-							current_config.interval = fetched_config.interval;
-							reset_due = true;
-						}
-						else {
-							// Tell GUI that the numbers are wrong somehow
-							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
-							reset_due = true;
-						}
+						current_config.interval = fetched_config.interval;
+						reset_due = true;
 					}
-					
-					// Multiplication constant (float)
-					if (fetched_config.a_const != current_config.a_const)
+					else {
+						// Tell GUI that the numbers are wrong somehow
+						// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+						reset_due = true;
+					}
+				}
+				
+				// Multiplication constant (float)
+				if (fetched_config.a_const != current_config.a_const)
+				{
+					if (fetched_config.a_const < 4294967295)
 					{
-						if (fetched_config.a_const < 4294967295)
-						{
-							current_config.a_const = fetched_config.a_const;
-							reset_due = true;
-						}
-						else {
-							// Tell GUI that the numbers are wrong somehow
-							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
-							reset_due = true;
-						}
+						current_config.a_const = fetched_config.a_const;
+						reset_due = true;
 					}
-					
-					
-					// addition constant
-					if (fetched_config.b_const != current_config.b_const)
+					else {
+						// Tell GUI that the numbers are wrong somehow
+						// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+						reset_due = true;
+					}
+				}
+				
+				
+				// addition constant
+				if (fetched_config.b_const != current_config.b_const)
+				{
+					if (fetched_config.b_const < 32766)
 					{
-						if (fetched_config.b_const < 32766)
-						{
-							current_config.b_const = fetched_config.b_const;
-							reset_due = true;
-						}
-						else {
-							// Tell GUI that the numbers are wrong somehow
-							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
-							reset_due = true;
-						}
+						current_config.b_const = fetched_config.b_const;
+						reset_due = true;
 					}
-					
-					// mode
-					if (fetched_config.mode != current_config.mode)
+					else {
+						// Tell GUI that the numbers are wrong somehow
+						// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+						reset_due = true;
+					}
+				}
+				
+				// mode
+				if (fetched_config.mode != current_config.mode)
+				{
+					if (fetched_config.mode < 4)
 					{
-						if (fetched_config.mode < 4)
-						{
-							current_config.mode = fetched_config.mode;
-							reset_due = true;
-						}
-						else {
-							// Tell GUI that the numbers are wrong somehow
-							// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
-							reset_due = true;
-						}
+						current_config.mode = fetched_config.mode;
+						reset_due = true;
 					}
-					
-					
-				} 
-				usleep(100);
+					else {
+						// Tell GUI that the numbers are wrong somehow
+						// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
+						reset_due = true;
+					}
+				}
+				
+				
+		
+			usleep(100);
 			}
 		}
 		
