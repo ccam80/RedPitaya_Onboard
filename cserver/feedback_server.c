@@ -56,7 +56,6 @@ int main ()
 	volatile uint32_t *rx_addr, *rx_cntr, *a_const, *fixed_phase, *start_freq, *stop_freq, *interval;
 	volatile uint16_t *rx_rate, *b_const;
 	volatile uint8_t *rx_rst;
-	uint8_t trigger = 0;
 	volatile void *cfg, *sts, *ram;
 	cpu_set_t mask;
 	struct sched_param param;
@@ -238,7 +237,7 @@ int main ()
 		
 		while(!reset_due)
 		{
-			if (trigger)
+			if (current_config.trigger)
 			{
 				// Enable RAM writer and CIC divider, send "go" signal to GUI
 				// printf("Triggered");
@@ -295,12 +294,11 @@ int main ()
 				
 				if (fetched_config.trigger != current_config.trigger)
 				{
-					trigger = fetched_config.trigger;
-					current_config.trigger = fetched_config.trigger;
-					if (trigger == 0)
+					if (fetched.trigger == 0)
 					{
 						*rx_rst &= ~TRIG_MASK;
 					}
+					current_config.trigger = fetched_config.trigger;
 				}
 				
 				if (fetched_config.CIC_divider != current_config.CIC_divider &
