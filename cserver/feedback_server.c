@@ -61,6 +61,7 @@ int main ()
 	struct sched_param param;
 	struct sockaddr_in addr;
 	uint32_t size;
+	bool fpga_triggered = false;
 	int YES = 1;
 	int config_error = -10;
 	bool reset_due = false;
@@ -247,8 +248,11 @@ int main ()
 				}
 
 				// Send trigger signal to FPGA
-				*rx_rst |= TRIG_MASK;
-
+				if (!fpga_triggered)
+				{
+					*rx_rst |= TRIG_MASK;
+					fpga_triggered = true
+				}
 				/* read ram writer position */ 
 				position = *rx_cntr;
 
@@ -265,7 +269,7 @@ int main ()
 			// Check for settings if not busy sending data
 				
 			// For each field, check number makes sense and save to current config
-			while(recv(sock_client, &fetched_config, sizeof(config_t), MSG_DONTWAIT) > 0)
+			if(recv(sock_client, &fetched_config, sizeof(config_t), MSG_DONTWAIT) > 0)
 			{	
 				//TODO: Tidy away this into a function or some looping structure because it's unweildy
 				// Is this a waste of time? Why not just overwrite the whole struct... - 9 assignments is minimal overhead
@@ -297,6 +301,7 @@ int main ()
 					if (fetched.trigger == 0)
 					{
 						*rx_rst &= ~TRIG_MASK;
+						fpga_triggered = false;
 					}
 					current_config.trigger = fetched_config.trigger;
 				}
