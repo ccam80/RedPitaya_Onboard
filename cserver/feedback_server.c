@@ -306,6 +306,7 @@ int main ()
 						printf("Trigger off \n\n");
 					}
 					current_config.trigger = fetched_config.trigger;
+				reset_due= true;
 				}
 				
 				if (fetched_config.CIC_divider != current_config.CIC_divider &
