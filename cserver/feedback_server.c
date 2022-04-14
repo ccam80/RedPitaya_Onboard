@@ -66,6 +66,9 @@ int main ()
 	int config_error = -10;
 	bool reset_due = false;
 
+	// write bitstream to FPGA
+	system("/usr/adc_test/feedback.bit > /dev/xdevcfg ");
+	
 	// Initialise config structs - current and next
 	config_t fetched_config, current_config = 	{.trigger = 0,
 												.mode = 1,
@@ -196,7 +199,7 @@ int main ()
 				"a_const: %d\n"
 				"b_const: %d\n"
 				"interval: %d\n\n",
-				trigger,
+				(*rx_rst & TRIG_MASK) >> 2,
 				(*rx_rst & MODE_MASK) >> 6,
 				*rx_rate,
 				*fixed_phase,
@@ -293,6 +296,7 @@ int main ()
 				if (fetched_config.trigger != current_config.trigger)
 				{
 					trigger = fetched_config.trigger;
+					current_config.trigger = fetched_config.trigger;
 					if (trigger == 0)
 					{
 						*rx_rst &= ~TRIG_MASK;
