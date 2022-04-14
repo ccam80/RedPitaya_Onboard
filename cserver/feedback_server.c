@@ -67,8 +67,8 @@ int main ()
 	bool reset_due = false;
 
 	// write bitstream to FPGA
-	system("/usr/adc_test/feedback.bit > /dev/xdevcfg ");
-	
+	system("cat /usr/adc_test/feedback.bit > /dev/xdevcfg ");
+
 	// Initialise config structs - current and next
 	config_t fetched_config, current_config = 	{.trigger = 0,
 												.mode = 1,
