@@ -298,7 +298,7 @@ int main ()
 				
 				if (fetched_config.trigger != current_config.trigger)
 				{
-					if (fetched.trigger == 0)
+					if (fetched_config.trigger == 0)
 					{
 						*rx_rst &= ~TRIG_MASK;
 						fpga_triggered = false;
