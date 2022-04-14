@@ -251,7 +251,8 @@ int main ()
 				if (!fpga_triggered)
 				{
 					*rx_rst |= TRIG_MASK;
-					fpga_triggered = true
+					fpga_triggered = true;
+					printf("Trigger on \n\n");
 				}
 				/* read ram writer position */ 
 				position = *rx_cntr;
@@ -302,6 +303,7 @@ int main ()
 					{
 						*rx_rst &= ~TRIG_MASK;
 						fpga_triggered = false;
+						printf("Trigger off \n\n");
 					}
 					current_config.trigger = fetched_config.trigger;
 				}
