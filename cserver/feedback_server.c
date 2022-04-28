@@ -31,8 +31,8 @@
 int interrupted = 0;
 
 typedef struct config_struct {
-	uint8_t trigger;
-	uint8_t mode;
+	uint16_t trigger;
+	uint16_t mode;
 	uint16_t CIC_divider;
 	uint32_t fixed_freq;
 	uint32_t start_freq;
@@ -306,7 +306,7 @@ int main ()
 						printf("Trigger off \n\n");
 					}
 					current_config.trigger = fetched_config.trigger;
-				reset_due= true;
+					reset_due= true;
 				}
 				
 				if (fetched_config.CIC_divider != current_config.CIC_divider &
