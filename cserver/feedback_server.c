@@ -88,193 +88,126 @@ uint32_t get_socket_type(int sock_client)
 	}
 }
 
-uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* fetched_config_struct)
+uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* fetched_config_struct, uint8_t *rx_rst)
 {
 	if(recv(sock_client, fetched_config_struct, sizeof(config_t), MSG_DONTWAIT) > 0)
 	{	
-	//TODO: Tidy away this into a function or some looping structure because it's unweildy
-	// Is this a waste of time? Why not just overwrite the whole struct... - 9 assignments is minimal overhead
-	
-	//Print all fetched config
-	printf("fetched config: \n"
-			"trigger: %d\n"
-			"state: %d\n"
-			"CIC_divider: %d\n"
-			"fixed_freq: %d\n"
-			"start_freq: %d\n"
-			"stop_freq: %d\n"
-			"a_const: %d\n"
-			"b_const: %d\n"
-			"interval: %d\n\n",
-			*fetched_config_struct.trigger,
-			*fetched_config_struct.mode,
-			*fetched_config_struct.CIC_divider,
-			*fetched_config_struct.fixed_freq,
-			*fetched_config_struct.start_freq,
-			*fetched_config_struct.stop_freq,
-			*fetched_config_struct.a_const,
-			*fetched_config_struct.b_const,
-			*fetched_config_struct.interval);
-	
-	
-	if (fetched_config_struct.trigger != current_config_struct.trigger)
-	{
-		if (fetched_config_struct.trigger == 0)
+		//TODO: Tidy away this into a function or some looping structure because it's unweildy
+		// Is this a waste of time? Why not just overwrite the whole struct... - 9 assignments is minimal overhead
+		
+		//Print all fetched config
+		printf("fetched config: \n"
+				"trigger: %d\n"
+				"state: %d\n"
+				"CIC_divider: %d\n"
+				"fixed_freq: %d\n"
+				"start_freq: %d\n"
+				"stop_freq: %d\n"
+				"a_const: %d\n"
+				"b_const: %d\n"
+				"interval: %d\n\n",
+				fetched_config_struct->trigger,
+				fetched_config_struct->mode,
+				fetched_config_struct->CIC_divider,
+				fetched_config_struct->fixed_freq,
+				fetched_config_struct->start_freq,
+				fetched_config_struct->stop_freq,
+				fetched_config_struct->a_const,
+				fetched_config_struct->b_const,
+				fetched_config_struct->interval);
+		
+		
+		if (fetched_config_struct->trigger != current_config_struct->trigger)
 		{
-			*rx_rst &= ~TRIG_MASK;
-			fpga_triggered = false;
-			printf("Trigger off \n\n");
+			if (fetched_config_struct->trigger == 0)
+			{
+				*rx_rst &= ~TRIG_MASK;
+				printf("Trigger off \n\n");
+			}
+			current_config_struct->trigger = fetched_config_struct->trigger;
 		}
-		current_config_struct.trigger = fetched_config_struct.trigger;
-		reset_due= true;
-	}
-	
-	if (fetched_config_struct.CIC_divider != current_config_struct.CIC_divider &
-	fetched_config_struct.CIC_divider < 6250)
-	{
-		if (fetched_config_struct.CIC_divider < 6250)
+		
+		if (fetched_config_struct->CIC_divider != current_config_struct->CIC_divider &
+		fetched_config_struct->CIC_divider < 6250)
 		{
-			current_config_struct.CIC_divider = fetched_config_struct.CIC_divider;
-			reset_due = true;
+			if (fetched_config_struct->CIC_divider < 6250)
+			{
+				current_config_struct->CIC_divider = fetched_config_struct->CIC_divider;
+			}
 		}
-		else {
-			// Tell GUI that the numbers are wrong somehow
-			// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
-			reset_due = true;
-		}
-	}
-	
-	// Fixed phase
-	if (fetched_config_struct.fixed_freq != current_config_struct.fixed_freq)
-	{
-		if (fetched_config_struct.fixed_freq < 61440000)
+		
+		// Fixed phase
+		if (fetched_config_struct->fixed_freq != current_config_struct->fixed_freq)
 		{
-			current_config_struct.fixed_freq = fetched_config_struct.fixed_freq;
-			reset_due = true;
+			if (fetched_config_struct->fixed_freq < 61440000)
+			{
+				current_config_struct->fixed_freq = fetched_config_struct->fixed_freq;
+			}
 		}
-		else {
-			// Tell GUI that the numbers are wrong somehow
-			// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
-			reset_due = true;
-		}
-	}
-	
-	// Start Freq
-	if (fetched_config_struct.start_freq != current_config_struct.start_freq)
-	{
-		if (fetched_config_struct.start_freq < 2000000)
+		
+		// Start Freq
+		if (fetched_config_struct->start_freq != current_config_struct->start_freq)
 		{
-			current_config_struct.start_freq = fetched_config_struct.start_freq;
-			reset_due = true;
+			if (fetched_config_struct->start_freq < 2000000)
+			{
+				current_config_struct->start_freq = fetched_config_struct->start_freq;
+			}
 		}
-		else {
-			// Tell GUI that the numbers are wrong somehow
-			// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
-			reset_due = true;
-		}
-	}
-	
-	//Stop Freq
-	if (fetched_config_struct.stop_freq != current_config_struct.stop_freq)
-	{
-		if (fetched_config_struct.stop_freq < 2000000)
+		
+		//Stop Freq
+		if (fetched_config_struct->stop_freq != current_config_struct->stop_freq)
 		{
-			current_config_struct.stop_freq = fetched_config_struct.stop_freq;
-			reset_due = true;
+			if (fetched_config_struct->stop_freq < 2000000)
+			{
+				current_config_struct->stop_freq = fetched_config_struct->stop_freq;
+			}
 		}
-		else {
-			// Tell GUI that the numbers are wrong somehow
-			// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
-			reset_due = true;
-		}
-	}
-	
-	//Interval
-	if (fetched_config_struct.interval != current_config_struct.interval)
-	{
-		if (fetched_config_struct.interval < 25000000)
+		
+		//Interval
+		if (fetched_config_struct->interval != current_config_struct->interval)
 		{
-			current_config_struct.interval = fetched_config_struct.interval;
-			reset_due = true;
+			if (fetched_config_struct->interval < 25000000)
+			{
+				current_config_struct->interval = fetched_config_struct->interval;
+				reset_due = true;
+			}
 		}
-		else {
-			// Tell GUI that the numbers are wrong somehow
-			// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
-			reset_due = true;
-		}
-	}
-	
-	// Multiplication constant (float)
-	if (fetched_config_struct.a_const != current_config_struct.a_const)
-	{
-		if (fetched_config_struct.a_const < 4294967295)
+		
+		// Multiplication constant (float)
+		if (fetched_config_struct->a_const != current_config_struct->a_const)
 		{
-			current_config_struct.a_const = fetched_config_struct.a_const;
-			reset_due = true;
+			if (fetched_config_struct->a_const < 4294967295)
+			{
+				current_config_struct->a_const = fetched_config_struct->a_const;
+				reset_due = true;
+			}
 		}
-		else {
-			// Tell GUI that the numbers are wrong somehow
-			// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
-			reset_due = true;
-		}
-	}
-	
-	
-	// addition constant
-	if (fetched_config_struct.b_const != current_config_struct.b_const)
-	{
-		if (fetched_config_struct.b_const < 32766)
+		
+		
+		// addition constant
+		if (fetched_config_struct->b_const != current_config_struct->b_const)
 		{
-			current_config_struct.b_const = fetched_config_struct.b_const;
-			reset_due = true;
+			if (fetched_config_struct->b_const < 32766)
+			{
+				current_config_struct->b_const = fetched_config_struct->b_const;
+				reset_due = true;
+			}
 		}
-		else {
-			// Tell GUI that the numbers are wrong somehow
-			// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
-			reset_due = true;
-		}
-	}
-	
-	// mode
-	if (fetched_config_struct.mode != current_config_struct.mode)
-	{
-		if (fetched_config_struct.mode < 4)
+		
+		// mode
+		if (fetched_config_struct->mode != current_config_struct->mode)
 		{
-			current_config_struct.mode = fetched_config_struct.mode;
-			reset_due = true;
+			if (fetched_config_struct->mode < 4)
+			{
+				current_config_struct->mode = fetched_config_struct->mode;
+				reset_due = true;
+			}
 		}
-		else {
-			// Tell GUI that the numbers are wrong somehow
-			// send(sock_client, &config_error, sizeof(config_error), MSG_NOSIGNAL) < 0
-			reset_due = true;
-		}
-	}
 
-		//Shared addresses toggled using mode bit
-	if (current_config_struct.mode == 0)
-	{
-		*fixed_phase = (uint32_t)floor(current_config_struct.fixed_freq / 125.0e6 * (1<<30) + 0.5);
-		*rx_rst = (uint8_t)((*rx_rst & (~MODE_MASK)) | (current_config_struct.mode << 6));
-		printf("State changed to %d\n", current_config_struct.mode);
-	} 
-	else if (current_config_struct.mode == 1)
-	{
-		*start_freq = current_config_struct.start_freq;
-		*stop_freq = current_config_struct.stop_freq;
-		*interval = current_config_struct.interval;
-		*rx_rst = (uint8_t)((*rx_rst & (~MODE_MASK)) | (current_config_struct.mode << 6));
-		printf("State changed to %d\n", current_config_struct.mode);
-	} 
-	else if (current_config_struct.mode == 2)
-	{
-		*a_const = current_config_struct.a_const;
-		*b_const = current_config_struct.b_const;
-		*rx_rst = (uint8_t)((*rx_rst & (~MODE_MASK)) | (current_config_struct.mode << 6));
-		printf("State changed to %d\n", current_config_struct.mode);
-	}
+	}	
 }
 
-void send_recording(int sock_client, volatile void *ram, volatile uint32_t *rx_cntr)
+uint32_t send_recording(int sock_client, volatile void *ram, volatile uint32_t *rx_cntr)
 {
 	// Enable RAM writer and CIC divider, send "go" signal to GUI
 	// printf("Triggered");
@@ -463,10 +396,31 @@ int main ()
 		message_type = get_socket_type(sock_client);
 
 		if (message_type == 0)
-			get_config(sock_client, &current_config, &fetched_config);
+			get_config(sock_client, &current_config, &fetched_config, rx_rst);
+			if (current_config.mode == 0)
+				{
+					*fixed_phase = (uint32_t)floor(current_config.fixed_freq / 125->0e6 * (1<<30) + 0->5);
+					*rx_rst = (uint8_t)((*rx_rst & (~MODE_MASK)) | (current_config.mode << 6));
+					printf("State changed to %d\n", current_config.mode);
+				} 
+				else if (current_config.mode == 1)
+				{
+					*start_freq = current_config.start_freq;
+					*stop_freq = current_config.stop_freq;
+					*interval = current_config.interval;
+					*rx_rst = (uint8_t)((*rx_rst & (~MODE_MASK)) | (current_config.mode << 6));
+					printf("State changed to %d\n", current_config.mode);
+				} 
+				else if (current_config.mode == 2)
+				{
+					*a_const = current_config.a_const;
+					*b_const = current_config.b_const;
+					*rx_rst = (uint8_t)((*rx_rst & (~MODE_MASK)) | (current_config.mode << 6));
+					printf("State changed to %d\n", current_config.mode);
+				}
 		else
 		{
-			bytes_to_send = message_type
+			bytes_to_send = message_type;
 		}
 
 		//Set up interrupt handler
