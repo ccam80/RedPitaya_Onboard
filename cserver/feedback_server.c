@@ -317,6 +317,7 @@ int main ()
 	interval = (uint32_t *)(cfg + 16);
 	b_const = (uint16_t *)(cfg + 18);
 	
+	limit = 32*1024;
 	
 	// Sets current read address at top of section
 	*rx_addr = size;
@@ -342,14 +343,12 @@ int main ()
 		return EXIT_FAILURE;
 	}
 
+	signal(SIGINT, signal_handler);
 	listen(sock_server, 1024);
 
 	while(!interrupted)
 	{
-		/* set channel parameters */
-		
-
-				
+		/* set channel parameters */				
 		printf("Saved config: \n"
 				"trigger: %d \n"
 				"state: %d\n"
@@ -373,27 +372,32 @@ int main ()
 		//Non shared parameters and reset handling	
 		//printf("params set\n");
 		/* enter reset mode */
-		reset_due = false;
+
 		*rx_rst &= ~1;
 		usleep(100);
 		*rx_rst &= ~2;
 		/* set sample rate */
 		*rx_rate = current_config.CIC_divider;
 		printf("reset complete\n");
-
+		reset_due = false;
 		//Await connection from GUI
-		if((sock_client = accept(sock_server, NULL, NULL)) < 0)
-		{
-			perror("accept\n");
-			return EXIT_FAILURE;
-		}
-		printf("sock client accepted\n");
 
-		message_type = get_socket_type(sock_client);
+		while (!reset_due)
+		{		
+			if((sock_client = accept(sock_server, NULL, NULL)) < 0)
+			{
+				perror("accept\n");
+				return EXIT_FAILURE;
+			}
+			printf("sock client accepted\n");
 
-		if (message_type == 0)
-			get_config(sock_client, &current_config, &fetched_config, rx_rst);
-			if (current_config.mode == 0)
+			message_type = get_socket_type(sock_client);
+
+			if (message_type == 0)
+			{
+				get_config(sock_client, &current_config, &fetched_config, rx_rst);
+				bytes_to_send = 0;
+				if (current_config.mode == 0)
 				{
 					*fixed_phase = (uint32_t)floor(current_config.fixed_freq / 125.0e6 * (1<<30) + 0.5);
 					*rx_rst = (uint8_t)((*rx_rst & (~MODE_MASK)) | (current_config.mode << 6));
@@ -414,40 +418,25 @@ int main ()
 					*rx_rst = (uint8_t)((*rx_rst & (~MODE_MASK)) | (current_config.mode << 6));
 					printf("State changed to %d\n", current_config.mode);
 				}
-		else
-		{
-			bytes_to_send = message_type;
-		}
-
-		//Set up interrupt handler
-		signal(SIGINT, signal_handler);
-		
-		/* enter normal operating mode */
-		
-		// 32kb limit (functions as send "trigger")
-		limit = 32*1024;
-		
-		while(!reset_due)
-		{
-			if (current_config.trigger)
+				reset_due = true;
+			}
+			else
 			{
+				bytes_to_send = message_type;
+
 				if (~*rx_rst & 3) {
 					*rx_rst |= 3;
 					if(send(sock_client, (void *)&YES, sizeof(YES), MSG_DONTWAIT) < 0) break;
-				}
-
-				// Send trigger signal to FPGA
-				if (!fpga_triggered)
-				{
 					*rx_rst |= TRIG_MASK;
-					fpga_triggered = true;
+					signal(SIGINT, signal_handler);
 					printf("Trigger on \n\n");
 				}
+
 				while (bytes_to_send > 0)
 				{
 					bytes_to_send -= send_recording(sock_client, ram, rx_cntr);
 				}
-				
+				reset_due = true;				
 			}
 
 		}
