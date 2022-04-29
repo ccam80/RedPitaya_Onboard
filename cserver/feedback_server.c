@@ -483,7 +483,7 @@ int main ()
 			{
 				if (~*rx_rst & 3) {
 					*rx_rst |= 3;
-					if(send(sock_client, (void *)&YES, sizeof(YES), MSG_NOSIGNAL) < 0) break;
+					if(send(sock_client, (void *)&YES, sizeof(YES), MSG_DONTWAIT) < 0) break;
 				}
 
 				// Send trigger signal to FPGA
