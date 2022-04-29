@@ -88,7 +88,7 @@ uint32_t get_socket_type(int sock_client)
 	}
 }
 
-uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* fetched_config_struct, uint8_t *rx_rst)
+uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* fetched_config_struct, volatile uint8_t *rx_rst)
 {
 	if(recv(sock_client, fetched_config_struct, sizeof(config_t), MSG_DONTWAIT) > 0)
 	{	
@@ -169,7 +169,6 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 			if (fetched_config_struct->interval < 25000000)
 			{
 				current_config_struct->interval = fetched_config_struct->interval;
-				reset_due = true;
 			}
 		}
 		
@@ -179,7 +178,6 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 			if (fetched_config_struct->a_const < 4294967295)
 			{
 				current_config_struct->a_const = fetched_config_struct->a_const;
-				reset_due = true;
 			}
 		}
 		
@@ -190,7 +188,6 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 			if (fetched_config_struct->b_const < 32766)
 			{
 				current_config_struct->b_const = fetched_config_struct->b_const;
-				reset_due = true;
 			}
 		}
 		
@@ -200,7 +197,6 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 			if (fetched_config_struct->mode < 4)
 			{
 				current_config_struct->mode = fetched_config_struct->mode;
-				reset_due = true;
 			}
 		}
 
@@ -399,7 +395,7 @@ int main ()
 			get_config(sock_client, &current_config, &fetched_config, rx_rst);
 			if (current_config.mode == 0)
 				{
-					*fixed_phase = (uint32_t)floor(current_config.fixed_freq / 125->0e6 * (1<<30) + 0->5);
+					*fixed_phase = (uint32_t)floor(current_config.fixed_freq / 125.0e6 * (1<<30) + 0.5);
 					*rx_rst = (uint8_t)((*rx_rst & (~MODE_MASK)) | (current_config.mode << 6));
 					printf("State changed to %d\n", current_config.mode);
 				} 
