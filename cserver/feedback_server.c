@@ -55,7 +55,7 @@ uint32_t get_socket_type(int sock_client)
 	uint32_t message = 0;
 	uint32_t config_ack = 2;
 
-	if(recv(sock_client, &message, sizeof(message), MSG_DONTWAIT) > 0)
+	if(recv(sock_client, &message, sizeof(message)) > 0)
 	{
 		if (message == 0)
 		{
