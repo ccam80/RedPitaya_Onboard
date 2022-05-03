@@ -57,6 +57,7 @@ uint32_t get_socket_type(int sock_client)
 
 	if(recv(sock_client, &message, sizeof(message), 0) > 0)
 	{
+		printf("Request message: %d", message)
 		if (message == 0)
 		{
 			if (send(sock_client, &config_ack, sizeof(config_ack), MSG_NOSIGNAL) == sizeof(config_ack)) 
@@ -90,10 +91,15 @@ uint32_t get_socket_type(int sock_client)
 
 uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* fetched_config_struct, volatile uint8_t *rx_rst)
 {
-	if(recv(sock_client, fetched_config_struct, sizeof(config_t), MSG_DONTWAIT) > 0)
+	//Block waiting for config struct
+	// TODO: Do we need to call mutliple times to ensure we receive the whole thing?
+	if(recv(sock_client, fetched_config_struct, sizeof(config_t), 0) > 0)
 	{	
-		//TODO: Tidy away this into a function or some looping structure because it's unweildy
-		// Is this a waste of time? Why not just overwrite the whole struct... - 9 assignments is minimal overhead
+		// Can't guarantee checking whole struct for inequality due to padding
+		// Can replace with a whole struct overwrite if required but this will depend on overhead
+		//difference between conditional tests and write operations. 
+
+		//TODO: Consider having trigger in its own branch to speed up a trigger operation 
 		
 		//Print all fetched config
 		printf("fetched config: \n"
@@ -253,7 +259,7 @@ int main ()
 
 	// Initialise config structs - current and next
 	config_t fetched_config, current_config = 	{.trigger = 0,
-												.mode = 1,
+												.mode = 0,
 												.CIC_divider = SAMPLING_DIVIDER_INIT,
 					    						.fixed_freq = FIXED_FREQ_INIT,
 												.start_freq = 0,
@@ -348,7 +354,7 @@ int main ()
 
 	while(!interrupted)
 	{
-		/* set channel parameters */				
+		/* print saved channel parameters */				
 		printf("Saved config: \n"
 				"trigger: %d \n"
 				"state: %d\n"
@@ -369,10 +375,7 @@ int main ()
 				*b_const,
 				*interval);
 
-		//Non shared parameters and reset handling	
-		//printf("params set\n");
-		/* enter reset mode */
-
+		//Reset RAM writer and filter
 		*rx_rst &= ~1;
 		usleep(100);
 		*rx_rst &= ~2;
@@ -383,7 +386,8 @@ int main ()
 		//Await connection from GUI
 
 		while (!reset_due)
-		{		
+		{
+			// Execution should block in this accept call until a client connects		
 			if((sock_client = accept(sock_server, NULL, NULL)) < 0)
 			{
 				perror("accept\n");
@@ -396,7 +400,9 @@ int main ()
 			if (message_type == 0)
 			{
 				get_config(sock_client, &current_config, &fetched_config, rx_rst);
+
 				bytes_to_send = 0;
+
 				if (current_config.mode == 0)
 				{
 					*fixed_phase = (uint32_t)floor(current_config.fixed_freq / 125.0e6 * (1<<30) + 0.5);
@@ -420,6 +426,8 @@ int main ()
 				}
 				reset_due = true;
 			}
+
+			// Assume any other number is a number of bytes to receive
 			else
 			{
 				bytes_to_send = message_type;
