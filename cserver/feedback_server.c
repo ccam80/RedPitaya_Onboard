@@ -217,11 +217,13 @@ uint32_t send_recording(int sock_client, volatile void *ram, volatile uint32_t *
 	int position, limit, offset;
 	
 	/* read ram writer position */ 
-	position = *rx_cntr;
+	
 
 	while (bytes_to_send > 0)
 	{
+		position = *rx_cntr;
 		/* send 256 kB if ready, otherwise sleep 0.1 ms */
+
 		if((limit > 0 && position > limit) || (limit == 0 && position < 32*1024))
 		{
 			offset = limit > 0 ? 0 : 256*1024;
