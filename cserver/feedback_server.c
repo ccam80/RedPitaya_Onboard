@@ -58,7 +58,7 @@ uint32_t get_socket_type(int sock_client)
 	if(recv(sock_client, &message, sizeof(message), 0) > 0)
 	{
 		printf("Request message: %d", message);
-		
+
 		if (message == 0)
 		{
 			if (send(sock_client, &config_ack, sizeof(config_ack), MSG_NOSIGNAL) == sizeof(config_ack)) 
@@ -444,6 +444,7 @@ int main ()
 				while (bytes_to_send > 0)
 				{
 					bytes_to_send -= send_recording(sock_client, ram, rx_cntr);
+					printf("\n bytes to send: %d \n", bytes_to_send)
 				}
 				reset_due = true;				
 			}
