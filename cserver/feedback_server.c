@@ -227,17 +227,16 @@ uint32_t send_recording(int sock_client, volatile void *ram, volatile uint32_t *
 			offset = limit > 0 ? 0 : 256*1024;
 			limit = limit > 0 ? 0 : 32*1024;
 			// printf("sending\n");
-			bytes_to_send -= send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL);
-			printf("\n bytes to send: %d \n", bytes_to_send);
-			return 1;
-		}
+			printf("\n bytes to send: %u \n", bytes_to_send);
+			bytes_to_send -= send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL);			
+			}
 
 		else
 		{
 			usleep(100);
 			printf("Awaiting more samples");
-			return -1;
 		}
+		return 1;
 	}
 }
 
