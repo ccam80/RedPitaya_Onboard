@@ -52,7 +52,7 @@ void signal_handler(int sig)
 // bytes_to_send to confirm a recording request
 uint32_t get_socket_type(int sock_client)
 {
-	uint32_t message = 0;
+	int32_t message = 0;
 	uint32_t config_ack = 2;
 
 	if(recv(sock_client, &message, sizeof(message), 0) > 0)
@@ -210,11 +210,11 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 	}	
 }
 
-uint32_t send_recording(int sock_client, volatile void *ram, volatile uint32_t *rx_cntr, uint32_t bytes_to_send)
+uint32_t send_recording(int sock_client, volatile void *ram, volatile uint32_t *rx_cntr, int32_t bytes_to_send)
 {
 	// Enable RAM writer and CIC divider, send "go" signal to GUI
 	// printf("Triggered");
-	int position, limit, offset;
+	int position, limit, offset = 0;
 	
 	/* read ram writer position */ 
 	
@@ -229,7 +229,7 @@ uint32_t send_recording(int sock_client, volatile void *ram, volatile uint32_t *
 			offset = limit > 0 ? 0 : 256*1024;
 			limit = limit > 0 ? 0 : 32*1024;
 			// printf("sending\n");
-			printf("\n bytes to send: %u \n", bytes_to_send);
+			printf("\n bytes to send: %d \n", bytes_to_send);
 			bytes_to_send -= send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL);			
 		}
 
@@ -255,10 +255,11 @@ int main ()
 	cpu_set_t mask;
 	struct sched_param param;
 	struct sockaddr_in addr;
-	uint32_t size, bytes_to_send, message_type;
+	uint32_t size;
+	int32_t bytes_to_send, message_type;
 	bool fpga_triggered = false;
-	int YES = 1;
-	int config_error = -10;
+	int32_t YES = 1;
+	int32_t config_error = -10;
 	bool reset_due = false;
 
 	// write bitstream to FPGA
