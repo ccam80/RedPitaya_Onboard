@@ -210,30 +210,33 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 	}	
 }
 
-uint32_t send_recording(int sock_client, volatile void *ram, volatile uint32_t *rx_cntr)
+uint32_t send_recording(int sock_client, volatile void *ram, volatile uint32_t *rx_cntr, uint32_t bytes_to_send)
 {
 	// Enable RAM writer and CIC divider, send "go" signal to GUI
 	// printf("Triggered");
 	int position, limit, offset;
 	
-	
 	/* read ram writer position */ 
 	position = *rx_cntr;
 
+	while (bytes_to_send > 0):
 	/* send 256 kB if ready, otherwise sleep 0.1 ms */
-	if((limit > 0 && position > limit) || (limit == 0 && position < 32*1024))
-	{
-		offset = limit > 0 ? 0 : 256*1024;
-		limit = limit > 0 ? 0 : 32*1024;
-		// printf("sending\n");
-		return send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL);
-	}
+		if((limit > 0 && position > limit) || (limit == 0 && position < 32*1024))
+		{
+			offset = limit > 0 ? 0 : 256*1024;
+			limit = limit > 0 ? 0 : 32*1024;
+			// printf("sending\n");
+			bytes_to_send -= send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL);
+			printf("\n bytes to send: %d \n", bytes_to_send);
+			return 1;
+		}
 
-	else
-	{
-		usleep(100);
-		return 0;
-	}
+		else
+		{
+			usleep(100);
+			prinftf("Awaiting more samples")
+			return -1;
+		}
 }
 
 int main ()
@@ -441,10 +444,11 @@ int main ()
 					printf("Trigger on \n\n");
 				}
 
-				while (bytes_to_send > 0)
+				if (send_recording(sock_client, ram, rx_cntr, bytes_to_send) < 1)
 				{
-					bytes_to_send -= send_recording(sock_client, ram, rx_cntr);
-					printf("\n bytes to send: %d \n", bytes_to_send);
+					printf{"send_recording error"};
+				}
+					
 				}
 				reset_due = true;				
 			}
