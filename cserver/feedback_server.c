@@ -35,12 +35,12 @@ typedef struct config_struct {
 	uint16_t trigger;
 	uint16_t mode;
 	uint16_t CIC_divider;
+	int16_t b_const;
 	uint32_t fixed_freq;
 	uint32_t start_freq;
 	uint32_t stop_freq;
 	uint32_t a_const;
 	uint32_t interval;
-	uint16_t b_const;
 } config_t;
 
 void signal_handler(int sig)
@@ -231,7 +231,7 @@ uint32_t send_recording(int sock_client, volatile void *ram, volatile uint32_t *
 			// printf("sending\n");
 			printf("\n bytes to send: %u \n", bytes_to_send);
 			bytes_to_send -= send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL);			
-			}
+		}
 
 		else
 		{
