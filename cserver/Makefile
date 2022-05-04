@@ -9,5 +9,6 @@ feedback_server: feedback_server.c
 	gcc $(CFLAGS) -O3 -o $@ $^ -lm
 
 clean:
-	rm -f feedback_server
+	rm -f feedback_server debug
+
 
