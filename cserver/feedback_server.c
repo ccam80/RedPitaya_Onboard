@@ -444,7 +444,7 @@ int main ()
 				while (bytes_to_send > 0)
 				{
 					bytes_to_send -= send_recording(sock_client, ram, rx_cntr);
-					printf("\n bytes to send: %d \n", bytes_to_send)
+					printf("\n bytes to send: %d \n", bytes_to_send);
 				}
 				reset_due = true;				
 			}
