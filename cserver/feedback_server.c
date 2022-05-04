@@ -219,8 +219,9 @@ uint32_t send_recording(int sock_client, volatile void *ram, volatile uint32_t *
 	/* read ram writer position */ 
 	position = *rx_cntr;
 
-	while (bytes_to_send > 0):
-	/* send 256 kB if ready, otherwise sleep 0.1 ms */
+	while (bytes_to_send > 0)
+	{
+		/* send 256 kB if ready, otherwise sleep 0.1 ms */
 		if((limit > 0 && position > limit) || (limit == 0 && position < 32*1024))
 		{
 			offset = limit > 0 ? 0 : 256*1024;
@@ -234,9 +235,10 @@ uint32_t send_recording(int sock_client, volatile void *ram, volatile uint32_t *
 		else
 		{
 			usleep(100);
-			prinftf("Awaiting more samples")
+			prinftf("Awaiting more samples");
 			return -1;
 		}
+	}
 }
 
 int main ()
@@ -446,7 +448,7 @@ int main ()
 
 				if (send_recording(sock_client, ram, rx_cntr, bytes_to_send) < 1)
 				{
-					printf{"send_recording error"};
+					printf("send_recording error");
 				}
 					
 				}
