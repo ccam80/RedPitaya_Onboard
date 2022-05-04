@@ -235,7 +235,7 @@ uint32_t send_recording(int sock_client, volatile void *ram, volatile uint32_t *
 		else
 		{
 			usleep(100);
-			prinftf("Awaiting more samples");
+			printf("Awaiting more samples");
 			return -1;
 		}
 	}
@@ -450,8 +450,7 @@ int main ()
 				{
 					printf("send_recording error");
 				}
-					
-				}
+				
 				reset_due = true;				
 			}
 
