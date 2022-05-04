@@ -234,7 +234,6 @@ uint32_t send_recording(int sock_client, volatile void *ram, volatile uint32_t *
 		else
 		{
 			usleep(100);
-			printf("Awaiting more samples");
 		}
 	}
 
