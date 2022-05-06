@@ -43,6 +43,23 @@ typedef struct config_struct {
 	uint32_t interval;
 } config_t;
 
+typedef struct system_pointers {
+	volatile uint32_t *rx_addr;
+	volatile uint32_t *rx_cntr;
+	volatile uint8_t *rx_rst;
+	volatile void * ram;
+} system_pointers_t;
+
+typedef struct parameters {
+	volatile uint32_t *a_const;
+	volatile uint32_t *fixed_phase;
+	volatile uint32_t *start_freq;
+	volatile uint32_t *stop_freq;
+	volatile uint32_t *interval;
+	volatile uint16_t *rx_rate;
+	volatile uint16_t *b_const;
+} params_t;
+
 void signal_handler(int sig)
 {
 	interrupted = 1;
@@ -90,7 +107,7 @@ uint32_t get_socket_type(int sock_client)
 	}
 }
 
-uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* fetched_config_struct, volatile uint8_t *rx_rst)
+uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* fetched_config_struct, system_pointers_t *system_pointers)
 {
 	//Block waiting for config struct
 	// TODO: Do we need to call mutliple times to ensure we receive the whole thing?
@@ -128,7 +145,7 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 		{
 			if (fetched_config_struct->trigger == 0)
 			{
-				*rx_rst &= ~TRIG_MASK;
+				*(system_pointers->rx_rst) &= ~TRIG_MASK;
 				printf("Trigger off \n\n");
 			}
 			current_config_struct->trigger = fetched_config_struct->trigger;
@@ -210,27 +227,44 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 	}	
 }
 
-uint32_t send_recording(int sock_client, volatile void *ram, volatile uint32_t *rx_cntr, int32_t bytes_to_send)
+uint32_t send_recording(int sock_client, int32_t bytes_to_send, system_pointers_t *system_pointers)
 {
 	// Enable RAM writer and CIC divider, send "go" signal to GUI
-	// printf("Triggered");
 	int position, limit, offset = 0;
-	
-	/* read ram writer position */ 
-	
+	int32_t YES = 1;
+
+	limit = 32*1024;
+
+		if (~(*(system_pointers->rx_rst) & 3)) {
+			printf("Trigger on \n\n");
+			//Send ack to GUI
+			if(send(sock_client, (void *)&YES, sizeof(YES), MSG_DONTWAIT) < 0) break;
+
+			//Turn on CIC compiler and RAM writer
+			*(system_pointers->rx_rst) |= 3;
+
+			//Trigger FPGA
+			*(system_pointers->rx_rst) |= TRIG_MASK;
+
+			//Reroute interrupts
+			signal(SIGINT, signal_handler);
+			
+		}
+
 
 	while (bytes_to_send > 0)
 	{
-		position = *rx_cntr;
-		/* send 256 kB if ready, otherwise sleep 0.1 ms */
+		/* read ram writer position */ 
 
+		position = *(system_pointers->rx_cntr);
+		/* send 256 kB if ready, otherwise sleep 0.1 ms */
 		if((limit > 0 && position > limit) || (limit == 0 && position < 32*1024))
 		{
 			offset = limit > 0 ? 0 : 256*1024;
 			limit = limit > 0 ? 0 : 32*1024;
 			// printf("sending\n");
 			printf("\n bytes to send: %d \n", bytes_to_send);
-			bytes_to_send -= send(sock_client, ram + offset, 256*1024, MSG_NOSIGNAL);			
+			bytes_to_send -= send(sock_client, system_pointers->ram + offset, 256*1024, MSG_NOSIGNAL);			
 		}
 
 		else
@@ -245,19 +279,18 @@ uint32_t send_recording(int sock_client, volatile void *ram, volatile uint32_t *
 int main ()
 {
 	int fd, sock_server, sock_client;
-	int position, limit, offset;
 
 	// Shared memory pointers
-	volatile uint32_t *rx_addr, *rx_cntr, *a_const, *fixed_phase, *start_freq, *stop_freq, *interval;
-	volatile uint16_t *rx_rate, *b_const;
-	volatile uint8_t *rx_rst;
-	volatile void *cfg, *sts, *ram;
+	params_t params;
+	system_pointers_t system_regs;
+
+	volatile void *cfg, *sts; // *ram;
 	cpu_set_t mask;
 	struct sched_param param;
 	struct sockaddr_in addr;
+
 	uint32_t size;
 	int32_t bytes_to_send, message_type;
-	bool fpga_triggered = false;
 	int32_t YES = 1;
 	int32_t config_error = -10;
 	bool reset_due = false;
@@ -294,9 +327,25 @@ int main ()
 	}
 
 	// Map Status and config addresses, close memory section once mapped
+
 	sts = mmap(NULL, sysconf(_SC_PAGESIZE), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0x40000000);
 	cfg = mmap(NULL, sysconf(_SC_PAGESIZE), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0x40001000);
 	close(fd);
+
+	// Assign "system" pointers
+	system_pointers_t system_regs = {.ram = mmap(NULL, 128*sysconf(_SC_PAGESIZE), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0),
+									.rx_rst = (uint8_t *)(cfg + 0),
+									.rx_addr = (uint32_t *)(cfg + 4),
+									.rx_cntr = (uint32_t *)(sts + 12)};
+	
+	//Customisable parameter space
+	params_t = {.rx_rate = (uint16_t *)(cfg + 2),
+				.fixed_phase = (uint32_t *)(cfg + 8),
+				.start_freq = (uint32_t *)(cfg + 8),
+				.stop_freq = (uint32_t *)(cfg + 12),
+				.a_const = (uint32_t *)(cfg + 12),
+				.interval = (uint32_t *)(cfg + 16),
+				.b_const = (uint16_t *)(cfg + 18)};	
 
 	// Open contiguous data memory section
 	if((fd = open("/dev/cma", O_RDWR)) < 0)
@@ -313,28 +362,8 @@ int main ()
 		return EXIT_FAILURE;
 	}
 
-	// Map shared zone
-	ram = mmap(NULL, 128*sysconf(_SC_PAGESIZE), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
-
-	// Assign GPIO/Config/Status pointers
-	rx_rst = (uint8_t *)(cfg + 0);
-	rx_rate = (uint16_t *)(cfg + 2);
-	rx_addr = (uint32_t *)(cfg + 4);
-	rx_cntr = (uint32_t *)(sts + 12);
-	
-	
-	//Customisable parameter space
-	fixed_phase = (uint32_t *)(cfg + 8);
-	start_freq = (uint32_t *)(cfg + 8);
-	stop_freq = (uint32_t *)(cfg + 12);
-	a_const = (uint32_t *)(cfg + 12);
-	interval = (uint32_t *)(cfg + 16);
-	b_const = (uint16_t *)(cfg + 18);
-	
-	limit = 32*1024;
-	
 	// Sets current read address at top of section
-	*rx_addr = size;
+	*(system_regs.rx_addr) = size;
 
 	// Create server socket
 	if((sock_server = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -373,22 +402,23 @@ int main ()
 				"a_const: %d\n"
 				"b_const: %d\n"
 				"interval: %d\n\n",
-				(*rx_rst & TRIG_MASK) >> 2,
-				(*rx_rst & MODE_MASK) >> 6,
-				*rx_rate,
-				*fixed_phase,
-				*start_freq,
-				*stop_freq,
-				*a_const,
-				*b_const,
-				*interval);
+				(*(system_regs.rx_rst) & TRIG_MASK) >> 2,
+				(*(system_regs.rx_rst) & MODE_MASK) >> 6,
+				125.0e6 / *(params.rx_rate),
+				*(params.fixed_phase),
+				*(params.start_freq),
+				*(params.stop_freq),
+				*(params.a_const),
+				*(params.b_const),
+				*(params.interval)
+				);
 
 		//Reset RAM writer and filter
-		*rx_rst &= ~1;
+		*(system_regs.rx_rst) &= ~1;
 		usleep(100);
-		*rx_rst &= ~2;
+		*(system_regs.rx_rst) &= ~2;
 		/* set sample rate */
-		*rx_rate = current_config.CIC_divider;
+		*(params.rx_rate) = current_config.CIC_divider;
 		printf("reset complete\n");
 		reset_due = false;
 		//Await connection from GUI
@@ -407,29 +437,29 @@ int main ()
 
 			if (message_type == 0)
 			{
-				get_config(sock_client, &current_config, &fetched_config, rx_rst);
+				get_config(sock_client, &current_config, &fetched_config, &system_regs);
 
 				bytes_to_send = 0;
 
 				if (current_config.mode == 0)
 				{
-					*fixed_phase = (uint32_t)floor(current_config.fixed_freq / 125.0e6 * (1<<30) + 0.5);
-					*rx_rst = (uint8_t)((*rx_rst & (~MODE_MASK)) | (current_config.mode << 6));
+					*(params.fixed_phase) = (uint32_t)floor(current_config.fixed_freq / 125.0e6 * (1<<30) + 0.5);
+					*(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config.mode << 6));
 					printf("State changed to %d\n", current_config.mode);
 				} 
 				else if (current_config.mode == 1)
 				{
-					*start_freq = current_config.start_freq;
-					*stop_freq = current_config.stop_freq;
-					*interval = current_config.interval;
-					*rx_rst = (uint8_t)((*rx_rst & (~MODE_MASK)) | (current_config.mode << 6));
+					*(params.start_freq) = current_config.start_freq;
+					*(params.stop_freq) = current_config.stop_freq;
+					*(params.interval) = current_config.interval;
+					*(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config.mode << 6));
 					printf("State changed to %d\n", current_config.mode);
 				} 
 				else if (current_config.mode == 2)
 				{
-					*a_const = current_config.a_const;
-					*b_const = current_config.b_const;
-					*rx_rst = (uint8_t)((*rx_rst & (~MODE_MASK)) | (current_config.mode << 6));
+					*(params.a_const) = current_config.a_const;
+					*(params.b_const) = current_config.b_const;
+					*(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config.mode << 6));
 					printf("State changed to %d\n", current_config.mode);
 				}
 				reset_due = true;
@@ -439,14 +469,6 @@ int main ()
 			else
 			{
 				bytes_to_send = message_type;
-
-				if (~*rx_rst & 3) {
-					*rx_rst |= 3;
-					if(send(sock_client, (void *)&YES, sizeof(YES), MSG_DONTWAIT) < 0) break;
-					*rx_rst |= TRIG_MASK;
-					signal(SIGINT, signal_handler);
-					printf("Trigger on \n\n");
-				}
 
 				if (send_recording(sock_client, ram, rx_cntr, bytes_to_send) < 1)
 				{
@@ -462,9 +484,9 @@ int main ()
 		close(sock_client);
 	}
 	/* enter reset mode */
-	*rx_rst &= ~1;
+	*(system_regs.rx_rst) &= ~1;
 	usleep(100);
-	*rx_rst &= ~2;
+	*(system_regs.rx_rst) &= ~2;
 
 	close(sock_server);
 
