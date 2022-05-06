@@ -74,7 +74,7 @@ uint32_t get_socket_type(int sock_client)
 
 	if(recv(sock_client, &message, sizeof(message), 0) > 0)
 	{
-		printf("Request message: %d", message);
+		printf("Request message: %d\n", message);
 
 		if (message == 0)
 		{
@@ -266,7 +266,7 @@ uint32_t send_recording(int sock_client, int32_t bytes_to_send, system_pointers_
 			limit = limit > 0 ? 0 : 32*1024;
 			// printf("sending\n");
 			printf("\n bytes to send: %d \n", bytes_to_send);
-			bytes_to_send -= send(sock_client, system_pointers->ram + offset, 256*1024, MSG_NOSIGNAL);			
+			bytes_to_send -= send(sock_client, (system_pointers->ram) + offset, 256*1024, MSG_NOSIGNAL);			
 		}
 
 		else
@@ -330,8 +330,10 @@ int main ()
 	cfg = mmap(NULL, sysconf(_SC_PAGESIZE), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0x40001000);
 	close(fd);
 
+
+
 	// Assign "system" pointers
-	system_pointers_t system_regs = {.ram = mmap(NULL, 128*sysconf(_SC_PAGESIZE), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0),
+	system_pointers_t system_regs = {.ram = 0,
 									.rx_rst = (uint8_t *)(cfg + 0),
 									.rx_addr = (uint32_t *)(cfg + 4),
 									.rx_cntr = (uint32_t *)(sts + 12)};
@@ -359,6 +361,8 @@ int main ()
 		perror("ioctl\n");
 		return EXIT_FAILURE;
 	}
+
+	system_regs.ram = mmap(NULL, 128*sysconf(_SC_PAGESIZE), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 
 	// Sets current read address at top of section
 	*(system_regs.rx_addr) = size;
