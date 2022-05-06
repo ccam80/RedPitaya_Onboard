@@ -397,7 +397,7 @@ int main ()
 		printf("Saved config: \n"
 				"trigger: %d \n"
 				"state: %d\n"
-				"CIC_divider: %d\n"
+				"CIC_divider: %f\n"
 				"fixed_freq: %d\n"
 				"start_freq: %d\n"
 				"stop_freq: %d\n"
@@ -406,7 +406,7 @@ int main ()
 				"interval: %d\n\n",
 				(*(system_regs.rx_rst) & TRIG_MASK) >> 2,
 				(*(system_regs.rx_rst) & MODE_MASK) >> 6,
-				125.0e6 / *(params.rx_rate),
+				(float)125.0e6 / *(params.rx_rate),
 				*(params.fixed_phase),
 				*(params.start_freq),
 				*(params.stop_freq),
