@@ -238,7 +238,9 @@ uint32_t send_recording(int sock_client, int32_t bytes_to_send, system_pointers_
 		if (~(*(system_pointers->rx_rst) & 3)) {
 			printf("Trigger on \n\n");
 			//Send ack to GUI
-			if(send(sock_client, (void *)&YES, sizeof(YES), MSG_DONTWAIT) < 0) break;
+			if(send(sock_client, (void *)&YES, sizeof(YES), MSG_DONTWAIT) < 0) {
+				return -1;
+			}
 
 			//Turn on CIC compiler and RAM writer
 			*(system_pointers->rx_rst) |= 3;
@@ -279,10 +281,6 @@ uint32_t send_recording(int sock_client, int32_t bytes_to_send, system_pointers_
 int main ()
 {
 	int fd, sock_server, sock_client;
-
-	// Shared memory pointers
-	params_t params;
-	system_pointers_t system_regs;
 
 	volatile void *cfg, *sts; // *ram;
 	cpu_set_t mask;
@@ -339,13 +337,13 @@ int main ()
 									.rx_cntr = (uint32_t *)(sts + 12)};
 	
 	//Customisable parameter space
-	params_t = {.rx_rate = (uint16_t *)(cfg + 2),
-				.fixed_phase = (uint32_t *)(cfg + 8),
-				.start_freq = (uint32_t *)(cfg + 8),
-				.stop_freq = (uint32_t *)(cfg + 12),
-				.a_const = (uint32_t *)(cfg + 12),
-				.interval = (uint32_t *)(cfg + 16),
-				.b_const = (uint16_t *)(cfg + 18)};	
+	params_t params = {.rx_rate = (uint16_t *)(cfg + 2),
+					   .fixed_phase = (uint32_t *)(cfg + 8),
+					   .start_freq = (uint32_t *)(cfg + 8),
+					   .stop_freq = (uint32_t *)(cfg + 12),
+					   .a_const = (uint32_t *)(cfg + 12),
+					   .interval = (uint32_t *)(cfg + 16),
+					   .b_const = (uint16_t *)(cfg + 18)};	
 
 	// Open contiguous data memory section
 	if((fd = open("/dev/cma", O_RDWR)) < 0)
@@ -470,7 +468,7 @@ int main ()
 			{
 				bytes_to_send = message_type;
 
-				if (send_recording(sock_client, ram, rx_cntr, bytes_to_send) < 1)
+				if (send_recording(sock_client, bytes_to_send, &system_regs) < 1)
 				{
 					printf("send_recording error");
 				}
