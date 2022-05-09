@@ -47,7 +47,7 @@ typedef struct system_pointers {
 	volatile uint32_t *rx_addr;
 	volatile uint32_t *rx_cntr;
 	volatile uint8_t *rx_rst;
-	volatile void * ram;
+	void *ram;
 } system_pointers_t;
 
 typedef struct parameters {
@@ -231,14 +231,14 @@ uint32_t send_recording(int sock_client, int32_t bytes_to_send, system_pointers_
 {
 	// Enable RAM writer and CIC divider, send "go" signal to GUI
 	int position, limit, offset = 0;
-	int32_t YES = 1;
+	int buffer = 1; // set output buffer to 1
 
 	limit = 32*1024;
 
 		if (~(*(system_pointers->rx_rst) & 3)) {
 			printf("Trigger on \n\n");
 			//Send ack to GUI
-			if(send(sock_client, (void *)&YES, sizeof(YES), MSG_DONTWAIT) < 0) {
+			if(send(sock_client, (void *)&buffer, sizeof(buffer), MSG_DONTWAIT) < 0) {
 				return -1;
 			}
 
@@ -254,7 +254,7 @@ uint32_t send_recording(int sock_client, int32_t bytes_to_send, system_pointers_
 		}
 
 
-	while (bytes_to_send > 0)
+	while (bytes_to_send > 0 && !interrupted)
 	{
 		/* read ram writer position */ 
 
@@ -280,21 +280,21 @@ uint32_t send_recording(int sock_client, int32_t bytes_to_send, system_pointers_
 
 int main ()
 {
-	int fd, sock_server, sock_client;
+	int fd; //file descriptor for memoryfile
+	int sock_server; //Socket for Server
+	int sock_client; //Client identefire 
+	int optval=1; //Number of socket options
 
-	volatile void *cfg, *sts; // *ram;
-	cpu_set_t mask;
-	struct sched_param param;
-	struct sockaddr_in addr;
+	volatile void *cfg, *sts; //Memory pointer
+	struct sockaddr_in addr; //Server address struct
 
-	uint32_t size;
+	uint32_t data_size;
 	int32_t bytes_to_send, message_type;
-	int32_t YES = 1;
 	int32_t config_error = -10;
 	bool reset_due = false;
 
 	// write bitstream to FPGA
-	system("cat ../feedback.bit > /dev/xdevcfg ");
+	system("cat /usr/src/feedback.bit > /dev/xdevcfg ");
 
 	// Initialise config structs - current and next
 	config_t fetched_config, current_config = 	{.trigger = 0,
@@ -307,7 +307,10 @@ int main ()
 												.interval = 1,
 												.b_const = B_CONST_INIT};
 
-	// Config from Pavel Demin's adc_test. Comments are my understanding of their function. 
+	/*
+	//cpu_set_t mask; 
+	//struct sched_param param;
+	// Unused code from Pavel Demin's adc_test. Comments are my understanding of their function. 
 	memset(&param, 0, sizeof(param));     						// Initialize memory of scheduler parameter block to 0?
 	param.sched_priority = sched_get_priority_max(SCHED_FIFO);  // Set max priority for FIFO buffer?
 	sched_setscheduler(0, SCHED_FIFO, &param);					// Set scheduler with sched priority
@@ -315,12 +318,12 @@ int main ()
 	//Pick CPU
 	CPU_ZERO(&mask);
 	CPU_SET(1, &mask);
-	sched_setaffinity(0, sizeof(cpu_set_t), &mask);
+	sched_setaffinity(0, sizeof(cpu_set_t), &mask);*/
 
 	// Open GPIO memory section
 	if((fd = open("/dev/mem", O_RDWR)) < 0)
 	{
-		perror("open\n");
+		perror("open");
 		return EXIT_FAILURE;
 	}
 
@@ -350,31 +353,31 @@ int main ()
 	// Open contiguous data memory section
 	if((fd = open("/dev/cma", O_RDWR)) < 0)
 	{
-		perror("open\n");
+		perror("open");
 		return EXIT_FAILURE;
 	}
 
 	// PD's code relating to contiguous data section
-	size = 128*sysconf(_SC_PAGESIZE);
-	if(ioctl(fd, CMA_ALLOC, &size) < 0)
+	data_size = 128*sysconf(_SC_PAGESIZE);
+	if(ioctl(fd, CMA_ALLOC, &data_size) < 0)
 	{
-		perror("ioctl\n");
+		perror("ioctl");
 		return EXIT_FAILURE;
 	}
 
 	system_regs.ram = mmap(NULL, 128*sysconf(_SC_PAGESIZE), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 
 	// Sets current read address at top of section
-	*(system_regs.rx_addr) = size;
+	*(system_regs.rx_addr) = data_size;
 
 	// Create server socket
 	if((sock_server = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{
-		perror("socket\n");
+		perror("socket");
 		return EXIT_FAILURE;
 	}
 
-	setsockopt(sock_server, SOL_SOCKET, SO_REUSEADDR, (void *)&YES, sizeof(YES));
+	setsockopt(sock_server, SOL_SOCKET, SO_REUSEADDR, (void *)&optval, sizeof(optval));
 
 	/* setup listening address */
 	memset(&addr, 0, sizeof(addr));
@@ -384,12 +387,12 @@ int main ()
 
 	if(bind(sock_server, (struct sockaddr *)&addr, sizeof(addr)) < 0)
 	{
-		perror("bind\n");
+		perror("bind");
 		return EXIT_FAILURE;
 	}
 
-	signal(SIGINT, signal_handler);
 	listen(sock_server, 1024);
+	printf("Listening on port %i ...\n", TCP_PORT);
 
 	while(!interrupted)
 	{
@@ -425,16 +428,16 @@ int main ()
 		reset_due = false;
 		//Await connection from GUI
 
-		while (!reset_due)
+		while (!reset_due && !interrupted)
 		{
 			// Execution should block in this accept call until a client connects		
 			if((sock_client = accept(sock_server, NULL, NULL)) < 0)
 			{
-				perror("accept\n");
+				perror("accept");
 				return EXIT_FAILURE;
 			}
 			printf("sock client accepted\n");
-
+			signal(SIGINT, signal_handler);
 			message_type = get_socket_type(sock_client);
 
 			if (message_type == 0)
@@ -482,7 +485,7 @@ int main ()
 
 		}
 		
-		signal(SIGINT, SIG_DFL);
+		signal(SIGINT, SIG_DFL); //reset interrupt handler to default
 		close(sock_client);
 	}
 	/* enter reset mode */
