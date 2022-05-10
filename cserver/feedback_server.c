@@ -20,7 +20,7 @@
 #define CMA_ALLOC _IOWR('Z', 0, uint32_t)
 
 // Starting RP Config
-#define FIXED_FREQ_INIT 65536					// 1Hz
+#define FIXED_FREQ_INIT 65536			// 1Hz
 #define A_CONST_INIT 1			 
 #define B_CONST_INIT 0					
 #define SAMPLING_DIVIDER_INIT 1250  	// 100 kHz
@@ -60,8 +60,7 @@ typedef struct parameters {
 	volatile uint16_t *b_const;
 } params_t;
 
-void signal_handler(int sig)
-{
+void signal_handler(int sig) {
 	interrupted = 1;
 }
 
@@ -72,47 +71,36 @@ uint32_t get_socket_type(int sock_client)
 	int32_t message = 0;
 	uint32_t config_ack = 2;
 
-	if(recv(sock_client, &message, sizeof(message), 0) > 0)
-	{
+	if(recv(sock_client, &message, sizeof(message), 0) > 0) {
+		
 		printf("Request message: %d\n", message);
 
-		if (message == 0)
-		{
-			if (send(sock_client, &config_ack, sizeof(config_ack), MSG_NOSIGNAL) == sizeof(config_ack)) 
-			{
+		if (message == 0) {
+			if (send(sock_client, &config_ack, sizeof(config_ack), MSG_NOSIGNAL) == sizeof(config_ack)) {
 				return message;
-			} else 
-			{
+			} else {
 				perror("Message ack send failed");
 				return EXIT_FAILURE;
 			}
-		}
-		else
-		{
-			if (send(sock_client, &message, sizeof(message), MSG_NOSIGNAL) == sizeof(message)) 
-			{
+		} else {
+			if (send(sock_client, &message, sizeof(message), MSG_NOSIGNAL) == sizeof(message)) {
 				return message;
-			} else 
-			{
+			} else {
 				perror("Message ack send failed");
 				return EXIT_FAILURE;
 			}
 		}	
-	}
-
-	else
-	{ 
+	} else { 
 		perror("No message type received");
 		return EXIT_FAILURE;
 	}
 }
 
-uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* fetched_config_struct, system_pointers_t *system_pointers)
-{
+uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* fetched_config_struct, system_pointers_t *system_pointers) {
+	
 	//Block waiting for config struct
-	// TODO: Do we need to call mutliple times to ensure we receive the whole thing?
-	if(recv(sock_client, fetched_config_struct, sizeof(config_t), 0) > 0)
-	{	
+	// TODO: Do we need to call mutliple times to ensure we receive the whole thing? <-- no it's only called if the massage fits sizeof(config_t) 
+	if(recv(sock_client, fetched_config_struct, sizeof(config_t), 0) > 0) {	
 		// Can't guarantee checking whole struct for inequality due to padding
 		// Can replace with a whole struct overwrite if required but this will depend on overhead
 		//difference between conditional tests and write operations. 
@@ -120,7 +108,7 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 		//TODO: Consider having trigger in its own branch to speed up a trigger operation 
 		
 		//Print all fetched config
-		printf("fetched config: \n"
+		printf("\nfetched config: \n"
 				"trigger: %d\n"
 				"state: %d\n"
 				"CIC_divider: %d\n"
@@ -140,137 +128,92 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 				fetched_config_struct->b_const,
 				fetched_config_struct->interval);
 		
-		
-		if (fetched_config_struct->trigger != current_config_struct->trigger)
-		{
-			if (fetched_config_struct->trigger == 0)
-			{
-				*(system_pointers->rx_rst) &= ~TRIG_MASK;
-				printf("Trigger off \n\n");
-			}
-			current_config_struct->trigger = fetched_config_struct->trigger;
+		// Trigger
+		if (fetched_config_struct->trigger == 0) {
+			*(system_pointers->rx_rst) &= ~TRIG_MASK;
+			printf("Trigger off \n\n");
 		}
+		current_config_struct->trigger = fetched_config_struct->trigger;
 		
-		if (fetched_config_struct->CIC_divider != current_config_struct->CIC_divider &
-		fetched_config_struct->CIC_divider < 6250)
-		{
-			if (fetched_config_struct->CIC_divider < 6250)
-			{
-				current_config_struct->CIC_divider = fetched_config_struct->CIC_divider;
-			}
+		// CIC Devider
+		if (fetched_config_struct->CIC_divider < 6250) {
+			current_config_struct->CIC_divider = fetched_config_struct->CIC_divider;
 		}
-		
+
 		// Fixed phase
-		if (fetched_config_struct->fixed_freq != current_config_struct->fixed_freq)
-		{
-			if (fetched_config_struct->fixed_freq < 61440000)
-			{
-				current_config_struct->fixed_freq = fetched_config_struct->fixed_freq;
-			}
+		if (fetched_config_struct->fixed_freq < 61440000) {
+			current_config_struct->fixed_freq = fetched_config_struct->fixed_freq;
 		}
 		
 		// Start Freq
-		if (fetched_config_struct->start_freq != current_config_struct->start_freq)
-		{
-			if (fetched_config_struct->start_freq < 2000000)
-			{
-				current_config_struct->start_freq = fetched_config_struct->start_freq;
-			}
+		if (fetched_config_struct->start_freq < 2000000) {
+			current_config_struct->start_freq = fetched_config_struct->start_freq;
 		}
 		
 		//Stop Freq
-		if (fetched_config_struct->stop_freq != current_config_struct->stop_freq)
-		{
-			if (fetched_config_struct->stop_freq < 2000000)
-			{
-				current_config_struct->stop_freq = fetched_config_struct->stop_freq;
-			}
+		if (fetched_config_struct->stop_freq < 2000000) {
+			current_config_struct->stop_freq = fetched_config_struct->stop_freq;
 		}
 		
 		//Interval
-		if (fetched_config_struct->interval != current_config_struct->interval)
-		{
-			if (fetched_config_struct->interval < 25000000)
-			{
-				current_config_struct->interval = fetched_config_struct->interval;
-			}
+		if (fetched_config_struct->interval < 25000000) {
+			current_config_struct->interval = fetched_config_struct->interval;
 		}
 		
 		// Multiplication constant (float)
-		if (fetched_config_struct->a_const != current_config_struct->a_const)
-		{
-			if (fetched_config_struct->a_const < 4294967295)
-			{
-				current_config_struct->a_const = fetched_config_struct->a_const;
-			}
+		if (fetched_config_struct->a_const < 4294967295) {
+			current_config_struct->a_const = fetched_config_struct->a_const;
 		}
 		
 		
 		// addition constant
-		if (fetched_config_struct->b_const != current_config_struct->b_const)
-		{
-			if (fetched_config_struct->b_const < 32766)
-			{
-				current_config_struct->b_const = fetched_config_struct->b_const;
-			}
+		if (fetched_config_struct->b_const < 32766) {
+			current_config_struct->b_const = fetched_config_struct->b_const;
 		}
 		
 		// mode
-		if (fetched_config_struct->mode != current_config_struct->mode)
-		{
-			if (fetched_config_struct->mode < 4)
-			{
-				current_config_struct->mode = fetched_config_struct->mode;
-			}
+		if (fetched_config_struct->mode < 4) {
+			current_config_struct->mode = fetched_config_struct->mode;
 		}
 
 	}	
 }
 
-uint32_t send_recording(int sock_client, int32_t bytes_to_send, system_pointers_t *system_pointers)
-{
+uint32_t send_recording(int sock_client, int32_t bytes_to_send, system_pointers_t *system_pointers) {
 	// Enable RAM writer and CIC divider, send "go" signal to GUI
 	int position, limit, offset = 0;
 	int buffer = 1; // set output buffer to 1
 
 	limit = 32*1024;
 
-		if (~(*(system_pointers->rx_rst) & 3)) {
-			printf("Trigger on \n\n");
-			//Send ack to GUI
-			if(send(sock_client, (void *)&buffer, sizeof(buffer), MSG_DONTWAIT) < 0) {
-				return -1;
-			}
-
-			//Turn on CIC compiler and RAM writer
-			*(system_pointers->rx_rst) |= 3;
-
-			//Trigger FPGA
-			*(system_pointers->rx_rst) |= TRIG_MASK;
-
-			//Reroute interrupts
-			signal(SIGINT, signal_handler);
-			
+	if (~(*(system_pointers->rx_rst) & 3)) {
+		printf("Trigger on\n\n");
+		
+		//Send ack to GUI
+		if(send(sock_client, (void *)&buffer, sizeof(buffer), MSG_DONTWAIT) < 0) {
+			return -1;
 		}
 
+		//Turn on CIC compiler and RAM writer
+		*(system_pointers->rx_rst) |= 3;
 
-	while (bytes_to_send > 0 && !interrupted)
-	{
-		/* read ram writer position */ 
+		//Trigger FPGA
+		*(system_pointers->rx_rst) |= TRIG_MASK;
+	}
 
+
+	while (bytes_to_send > 0 && !interrupted) {
+		
+		// read ram writer position
 		position = *(system_pointers->rx_cntr);
-		/* send 256 kB if ready, otherwise sleep 0.1 ms */
-		if((limit > 0 && position > limit) || (limit == 0 && position < 32*1024))
-		{
+
+		// send 256 kB if ready, otherwise sleep 0.1 ms 
+		if((limit > 0 && position > limit) || (limit == 0 && position < 32*1024)) {
 			offset = limit > 0 ? 0 : 256*1024;
 			limit = limit > 0 ? 0 : 32*1024;
-			// printf("sending\n");
-			printf("\n bytes to send: %d \n", bytes_to_send);
+			printf("bytes to send: %d \n", bytes_to_send);
 			bytes_to_send -= send(sock_client, (system_pointers->ram) + offset, 256*1024, MSG_NOSIGNAL);			
-		}
-
-		else
-		{
+		} else {
 			usleep(100);
 		}
 	}
@@ -278,8 +221,8 @@ uint32_t send_recording(int sock_client, int32_t bytes_to_send, system_pointers_
 	return 1;
 }
 
-int main ()
-{
+int main () {
+//// Variables declaration
 	int fd; //file descriptor for memoryfile
 	int sock_server; //Socket for Server
 	int sock_client; //Client identefire 
@@ -290,14 +233,11 @@ int main ()
 
 	uint32_t data_size;
 	int32_t bytes_to_send, message_type;
-	int32_t config_error = -10;
+	//int32_t config_error = -10;
 	bool reset_due = false;
 
-	// write bitstream to FPGA
-	system("cat /usr/src/feedback.bit > /dev/xdevcfg ");
-
 	// Initialise config structs - current and next
-	config_t fetched_config, current_config = 	{.trigger = 0,
+	config_t fetched_config, current_config = { .trigger = 0,
 												.mode = 0,
 												.CIC_divider = SAMPLING_DIVIDER_INIT,
 					    						.fixed_freq = FIXED_FREQ_INIT,
@@ -320,23 +260,23 @@ int main ()
 	CPU_SET(1, &mask);
 	sched_setaffinity(0, sizeof(cpu_set_t), &mask);*/
 
+//// write bitstream to FPGA
+	system("cat /usr/src/feedback.bit > /dev/xdevcfg ");
+
+//// Shared memory configuration
 	// Open GPIO memory section
-	if((fd = open("/dev/mem", O_RDWR)) < 0)
-	{
+	if((fd = open("/dev/mem", O_RDWR)) < 0)	{
 		perror("open");
 		return EXIT_FAILURE;
 	}
 
 	// Map Status and config addresses, close memory section once mapped
-
 	sts = mmap(NULL, sysconf(_SC_PAGESIZE), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0x40000000);
 	cfg = mmap(NULL, sysconf(_SC_PAGESIZE), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0x40001000);
 	close(fd);
 
-
-
 	// Assign "system" pointers
-	system_pointers_t system_regs = {.ram = 0,
+	system_pointers_t system_regs ={.ram = 0,
 									.rx_rst = (uint8_t *)(cfg + 0),
 									.rx_addr = (uint32_t *)(cfg + 4),
 									.rx_cntr = (uint32_t *)(sts + 12)};
@@ -351,53 +291,59 @@ int main ()
 					   .b_const = (uint16_t *)(cfg + 18)};	
 
 	// Open contiguous data memory section
-	if((fd = open("/dev/cma", O_RDWR)) < 0)
-	{
+	if((fd = open("/dev/cma", O_RDWR)) < 0)	{
 		perror("open");
 		return EXIT_FAILURE;
 	}
 
 	// PD's code relating to contiguous data section
 	data_size = 128*sysconf(_SC_PAGESIZE);
-	if(ioctl(fd, CMA_ALLOC, &data_size) < 0)
-	{
+	if(ioctl(fd, CMA_ALLOC, &data_size) < 0) {
 		perror("ioctl");
 		return EXIT_FAILURE;
 	}
-
 	system_regs.ram = mmap(NULL, 128*sysconf(_SC_PAGESIZE), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 
 	// Sets current read address at top of section
 	*(system_regs.rx_addr) = data_size;
 
-	// Create server socket
-	if((sock_server = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-	{
+//// Socket Configuration
+	//Create server socket
+	if((sock_server = socket(AF_INET, SOCK_STREAM, 0)) < 0)	{
 		perror("socket");
 		return EXIT_FAILURE;
 	}
 
+	// Set socket options
 	setsockopt(sock_server, SOL_SOCKET, SO_REUSEADDR, (void *)&optval, sizeof(optval));
 
-	/* setup listening address */
+	// Setup listening address 
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	addr.sin_port = htons(TCP_PORT);
 
-	if(bind(sock_server, (struct sockaddr *)&addr, sizeof(addr)) < 0)
-	{
+	// Bind adress to socket
+	if(bind(sock_server, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
 		perror("bind");
 		return EXIT_FAILURE;
 	}
 
+	// Listening for incomming connections
 	listen(sock_server, 1024);
 	printf("Listening on port %i ...\n", TCP_PORT);
 
-	while(!interrupted)
-	{
-		/* print saved channel parameters */				
-		printf("Saved config: \n"
+//// Main Loop
+	while(!interrupted)	{
+		// Reset RAM writer and filter
+		*(system_regs.rx_rst) &= ~1;
+		usleep(100);
+		*(system_regs.rx_rst) &= ~2;
+		// Set sample rate
+		*(params.rx_rate) = current_config.CIC_divider;
+		
+		// print saved channel parameters			
+		printf("\nSaved config: \n"
 				"trigger: %d \n"
 				"state: %d\n"
 				"CIC_divider: %f\n"
@@ -418,50 +364,39 @@ int main ()
 				*(params.interval)
 				);
 
-		//Reset RAM writer and filter
-		*(system_regs.rx_rst) &= ~1;
-		usleep(100);
-		*(system_regs.rx_rst) &= ~2;
-		/* set sample rate */
-		*(params.rx_rate) = current_config.CIC_divider;
 		printf("reset complete\n");
 		reset_due = false;
-		//Await connection from GUI
-
-		while (!reset_due && !interrupted)
-		{
+		
+		while (!reset_due && !interrupted) {
+			// Await connection from GUI
 			// Execution should block in this accept call until a client connects		
-			if((sock_client = accept(sock_server, NULL, NULL)) < 0)
-			{
+			if((sock_client = accept(sock_server, NULL, NULL)) < 0)	{
 				perror("accept");
 				return EXIT_FAILURE;
 			}
 			printf("sock client accepted\n");
-			signal(SIGINT, signal_handler);
+
+			//Link lnterupt to signal_handler
+			signal(SIGINT, signal_handler); 
+
 			message_type = get_socket_type(sock_client);
 
-			if (message_type == 0)
-			{
+			if (message_type == 0) {
 				get_config(sock_client, &current_config, &fetched_config, &system_regs);
 
 				bytes_to_send = 0;
 
-				if (current_config.mode == 0)
-				{
+				if (current_config.mode == 0) {
 					*(params.fixed_phase) = (uint32_t)floor(current_config.fixed_freq / 125.0e6 * (1<<30) + 0.5);
 					*(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config.mode << 6));
 					printf("State changed to %d\n", current_config.mode);
-				} 
-				else if (current_config.mode == 1)
-				{
+				} else if (current_config.mode == 1) {
 					*(params.start_freq) = current_config.start_freq;
 					*(params.stop_freq) = current_config.stop_freq;
 					*(params.interval) = current_config.interval;
 					*(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config.mode << 6));
 					printf("State changed to %d\n", current_config.mode);
-				} 
-				else if (current_config.mode == 2)
-				{
+				} else if (current_config.mode == 2) {
 					*(params.a_const) = current_config.a_const;
 					*(params.b_const) = current_config.b_const;
 					*(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config.mode << 6));
@@ -471,18 +406,14 @@ int main ()
 			}
 
 			// Assume any other number is a number of bytes to receive
-			else
-			{
+			else {
 				bytes_to_send = message_type;
 
-				if (send_recording(sock_client, bytes_to_send, &system_regs) < 1)
-				{
+				if (send_recording(sock_client, bytes_to_send, &system_regs) < 1) {
 					printf("send_recording error");
 				}
-				
 				reset_due = true;				
 			}
-
 		}
 		
 		signal(SIGINT, SIG_DFL); //reset interrupt handler to default
