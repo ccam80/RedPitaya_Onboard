@@ -110,7 +110,7 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 		//Print all fetched config
 		printf("\nfetched config: \n"
 				"trigger: %d\n"
-				"state: %d\n"
+				"mode: %d\n"
 				"CIC_divider: %d\n"
 				"fixed_freq: %d\n"
 				"start_freq: %d\n"
@@ -345,7 +345,7 @@ int main () {
 		// print saved channel parameters			
 		printf("\nSaved config: \n"
 				"trigger: %d \n"
-				"state: %d\n"
+				"mode: %d\n"
 				"CIC_divider: %f\n"
 				"fixed_freq: %d\n"
 				"start_freq: %d\n"
@@ -389,18 +389,18 @@ int main () {
 				if (current_config.mode == 0) {
 					*(params.fixed_phase) = (uint32_t)floor(current_config.fixed_freq / 125.0e6 * (1<<30) + 0.5);
 					*(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config.mode << 6));
-					printf("State changed to %d\n", current_config.mode);
+					printf("Mode changed to %d\n", current_config.mode);
 				} else if (current_config.mode == 1) {
 					*(params.start_freq) = current_config.start_freq;
 					*(params.stop_freq) = current_config.stop_freq;
 					*(params.interval) = current_config.interval;
 					*(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config.mode << 6));
-					printf("State changed to %d\n", current_config.mode);
+					printf("Mode changed to %d\n", current_config.mode);
 				} else if (current_config.mode == 2) {
 					*(params.a_const) = current_config.a_const;
 					*(params.b_const) = current_config.b_const;
 					*(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config.mode << 6));
-					printf("State changed to %d\n", current_config.mode);
+					printf("Mode changed to %d\n", current_config.mode);
 				}
 				reset_due = true;
 			}
