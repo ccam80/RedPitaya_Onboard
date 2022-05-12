@@ -18,17 +18,17 @@ Located in mem file with memory offset of 0x40001000 and range of 4k
 Bit      | Byte Offset | Signal                          | Substructure
 -------- | ----------- | ------------------------------- | ------
 [7:0]    | 0           | "reset"                         | [0:0]=cma_memory_reset
-         |             |                                 | [1:1]=ram_writer_reset
-         |             |                                 | [2:2]=Feedback_trigger
-         |             |                                 | [7:6]=Feedback_mode)   
+&nbsp;   |             |                                 | [1:1]=ram_writer_reset
+&nbsp;   |             |                                 | [2:2]=Feedback_trigger
+&nbsp;   |             |                                 | [7:6]=Feedback_mode)   
 [31:16]  | 2           | sample rate (CIC Filter Config --> f=125MHz/value) |
 [63:32]  | 4           | RAM_adress --> set address of writer |
 [159:64] | 8           | Feedback_config_bus             | [95:64] (Offset 8)=fixed_phase
-         |             |                                 | [95:64] (Offset 8)=start_freqency
-         |             |                                 | [127:96] (Offset 12)=stop_freqency
-         |             |                                 | [127:96] (Offset 12)=a_const-->MULT_CONST
-         |             |                                 | [159:128] (Offset 16)=interval
-         |             |                                 | [159:144] (Offset 18)=b_const-->ADD_CONST
+&nbsp;   |             |                                 | [95:64] (Offset 8)=start_freqency
+&nbsp;   |             |                                 | [127:96] (Offset 12)=stop_freqency
+&nbsp;   |             |                                 | [127:96] (Offset 12)=a_const-->MULT_CONST
+&nbsp;   |             |                                 | [159:128] (Offset 16)=interval
+&nbsp;   |             |                                 | [159:144] (Offset 18)=b_const-->ADD_CONST
 
 Duplicated bit meaning in Feedback_config_bus are filtered by mode selection
 
