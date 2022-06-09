@@ -1,9 +1,9 @@
-## FPGA
+# FPGA
 The shered memory consisting of two files (mem and cma) both located in the dev folder.
-To get it workin like this the SD card image of Parvel Demin is nessecery, it can be installed to the RedPitaya according the description in the LED blinker tutorial:
+To get it working like this the SD card image of Parvel Demin is nessecery, it can be installed to the RedPitaya according the description in the LED blinker tutorial:
 http://pavel-demin.github.io/red-pitaya-notes/led-blinker/
 
-# sts
+## sts
 Located in mem file with memory offset of 0x40000000 and range of 4k
 
 Bit      | Offset | Signal   
@@ -12,7 +12,7 @@ Bit      | Offset | Signal
 [95:32]  | 4      | DNA --> device ID
 [127:96] | 12     | writer position
 
-# cfg
+## cfg
 Located in mem file with memory offset of 0x40001000 and range of 4k
 
 Bit      | Byte Offset | Signal                          | Substructure
@@ -32,7 +32,7 @@ Bit      | Byte Offset | Signal                          | Substructure
 
 Duplicated bit meaning in Feedback_config_bus are filtered by mode selection
 
-# ram
+## ram
 Located in cma file with memory offset of 0x00000000 and range of 512M
 
 
