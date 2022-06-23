@@ -20,17 +20,17 @@ Bit      | Byte Offset | Signal                          | Substructure
 [7:0]    | 0           | "reset"                         | [0:0]=cma_memory_reset
 &nbsp;   |             |                                 | [1:1]=ram_writer_reset
 &nbsp;   |             |                                 | [2:2]=Feedback_trigger
-&nbsp;   |             |                                 | [7:6]=Feedback_mode)   
+&nbsp;   |             |                                 | [7:6]=Feedback_mode   
 [31:16]  | 2           | sample rate (CIC Filter Config --> f=125MHz/value) |
 [63:32]  | 4           | RAM_adress --> set address of writer |
-[159:64] | 8           | Feedback_config_bus             | [95:64] (Offset 8)=fixed_phase
-&nbsp;   |             |                                 | [95:64] (Offset 8)=start_freqency
-&nbsp;   |             |                                 | [127:96] (Offset 12)=stop_freqency
-&nbsp;   |             |                                 | [127:96] (Offset 12)=a_const-->MULT_CONST
-&nbsp;   |             |                                 | [159:128] (Offset 16)=interval
-&nbsp;   |             |                                 | [159:144] (Offset 18)=b_const-->ADD_CONST
-
-Duplicated bit meaning in Feedback_config_bus are filtered by mode selection
+[159:64] | 8           | Feedback_config_bus             | [95:64] (Offset 8)=param_a/ fixed_phase/ start_freqency
+&nbsp;   |             |                                 | [127:96] (Offset 12)=param_b/ amplitude/ stop_freqency
+&nbsp;   |             |                                 | [159:128] (Offset 16)=param_c/ amplitude
+&nbsp;   |             |                                 | [191:160] (Offset 20)=param_d
+&nbsp;   |             |                                 | [223:192] (Offset 24)=param_e
+&nbsp;   |             |                                 | [255:224] (Offset 28)=param_f
+&nbsp;   |             |                                 | [287:256] (Offset 32)=param_g
+&nbsp;   |             |                                 | [319:288] (Offset 36)=param_h
 
 ## ram
 Located in cma file with memory offset of 0x00000000 and range of 512M

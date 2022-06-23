@@ -20,9 +20,7 @@
 #define CMA_ALLOC _IOWR('Z', 0, uint32_t)
 
 // Starting RP Config
-#define FIXED_FREQ_INIT 65536			// 1Hz
-#define A_CONST_INIT 1			 
-#define B_CONST_INIT 0					
+#define FIXED_FREQ_INIT 65536			// 1Hz			
 #define SAMPLING_DIVIDER_INIT 1250  	// 100 kHz
 
 #define MODE_MASK 192
@@ -35,12 +33,14 @@ typedef struct config_struct {
 	uint16_t trigger;
 	uint16_t mode;
 	uint16_t CIC_divider;
-	int16_t b_const;
-	uint32_t fixed_freq;
-	uint32_t start_freq;
-	uint32_t stop_freq;
-	uint32_t a_const;
-	uint32_t interval;
+	int32_t param_a;
+	int32_t param_b;
+	int32_t param_c;
+	int32_t param_d;
+	int32_t param_e;
+	int32_t param_f;
+	int32_t param_g;
+	int32_t param_h;
 } config_t;
 
 typedef struct system_pointers {
@@ -51,13 +51,15 @@ typedef struct system_pointers {
 } system_pointers_t;
 
 typedef struct parameters {
-	volatile uint32_t *a_const;
-	volatile uint32_t *fixed_phase;
-	volatile uint32_t *start_freq;
-	volatile uint32_t *stop_freq;
-	volatile uint32_t *interval;
+	volatile int32_t *param_a;
+	volatile int32_t *param_b;
+	volatile int32_t *param_c;
+	volatile int32_t *param_d;
+	volatile int32_t *param_e;
+	volatile int32_t *param_f;
+	volatile int32_t *param_g;
+	volatile int32_t *param_h;
 	volatile uint16_t *rx_rate;
-	volatile uint16_t *b_const;
 } params_t;
 
 void signal_handler(int sig) {
@@ -112,21 +114,25 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 				"trigger: %d\n"
 				"mode: %d\n"
 				"CIC_divider: %d\n"
-				"fixed_freq: %d\n"
-				"start_freq: %d\n"
-				"stop_freq: %d\n"
-				"a_const: %d\n"
-				"b_const: %d\n"
-				"interval: %d\n\n",
+				"param_a: %d\n"
+				"param_b: %d\n"
+				"param_c: %d\n"
+				"param_d: %d\n"
+				"param_e: %d\n"
+				"param_f: %d\n"
+				"param_g: %d\n"
+				"param_h: %d\n\n",
 				fetched_config_struct->trigger,
 				fetched_config_struct->mode,
 				fetched_config_struct->CIC_divider,
-				fetched_config_struct->fixed_freq,
-				fetched_config_struct->start_freq,
-				fetched_config_struct->stop_freq,
-				fetched_config_struct->a_const,
-				fetched_config_struct->b_const,
-				fetched_config_struct->interval);
+				fetched_config_struct->param_a,
+				fetched_config_struct->param_b,
+				fetched_config_struct->param_c,
+				fetched_config_struct->param_d,
+				fetched_config_struct->param_e,
+				fetched_config_struct->param_f,
+				fetched_config_struct->param_g,
+				fetched_config_struct->param_h);
 		
 		// Trigger
 		if (fetched_config_struct->trigger == 0) {
@@ -135,46 +141,25 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 		}
 		current_config_struct->trigger = fetched_config_struct->trigger;
 		
+		// mode
+		if (fetched_config_struct->mode < 4) {
+			current_config_struct->mode = fetched_config_struct->mode;
+		}
+
 		// CIC Devider
 		if (fetched_config_struct->CIC_divider < 6250) {
 			current_config_struct->CIC_divider = fetched_config_struct->CIC_divider;
 		}
 
-		// Fixed phase
-		if (fetched_config_struct->fixed_freq < 61440000) {
-			current_config_struct->fixed_freq = fetched_config_struct->fixed_freq;
-		}
-		
-		// Start Freq
-		if (fetched_config_struct->start_freq < 2000000) {
-			current_config_struct->start_freq = fetched_config_struct->start_freq;
-		}
-		
-		//Stop Freq
-		if (fetched_config_struct->stop_freq < 2000000) {
-			current_config_struct->stop_freq = fetched_config_struct->stop_freq;
-		}
-		
-		//Interval
-		if (fetched_config_struct->interval < 25000000) {
-			current_config_struct->interval = fetched_config_struct->interval;
-		}
-		
-		// Multiplication constant (float)
-		if (fetched_config_struct->a_const < 4294967295) {
-			current_config_struct->a_const = fetched_config_struct->a_const;
-		}
-		
-		
-		// addition constant
-		if (fetched_config_struct->b_const < 32766) {
-			current_config_struct->b_const = fetched_config_struct->b_const;
-		}
-		
-		// mode
-		if (fetched_config_struct->mode < 4) {
-			current_config_struct->mode = fetched_config_struct->mode;
-		}
+		// Parameter
+		current_config_struct->param_a = fetched_config_struct->param_a;
+		current_config_struct->param_b = fetched_config_struct->param_b;
+		current_config_struct->param_c = fetched_config_struct->param_c;
+		current_config_struct->param_d = fetched_config_struct->param_d;
+		current_config_struct->param_e = fetched_config_struct->param_e;
+		current_config_struct->param_f = fetched_config_struct->param_f;
+		current_config_struct->param_g = fetched_config_struct->param_g;
+		current_config_struct->param_h = fetched_config_struct->param_h;
 
 	}	
 }
@@ -240,12 +225,14 @@ int main () {
 	config_t fetched_config, current_config = { .trigger = 0,
 												.mode = 0,
 												.CIC_divider = SAMPLING_DIVIDER_INIT,
-					    						.fixed_freq = FIXED_FREQ_INIT,
-												.start_freq = 0,
-												.stop_freq = 0,
-												.a_const = A_CONST_INIT,
-												.interval = 1,
-												.b_const = B_CONST_INIT};
+					    						.param_a = FIXED_FREQ_INIT,
+												.param_b = 0,
+												.param_c = 0,
+												.param_d = 0,
+												.param_e = 0,
+												.param_f = 0,
+												.param_g = 0,
+												.param_h = 0};
 
 	/*
 	//cpu_set_t mask; 
@@ -283,12 +270,14 @@ int main () {
 	
 	//Customisable parameter space
 	params_t params = {.rx_rate = (uint16_t *)(cfg + 2),
-					   .fixed_phase = (uint32_t *)(cfg + 8),
-					   .start_freq = (uint32_t *)(cfg + 8),
-					   .stop_freq = (uint32_t *)(cfg + 12),
-					   .a_const = (uint32_t *)(cfg + 12),
-					   .interval = (uint32_t *)(cfg + 16),
-					   .b_const = (uint16_t *)(cfg + 18)};	
+					   .param_a = (int32_t *)(cfg + 8),
+					   .param_b = (int32_t *)(cfg + 12),
+					   .param_c = (int32_t *)(cfg + 16),
+					   .param_d = (int32_t *)(cfg + 20),
+					   .param_e = (int32_t *)(cfg + 24),
+					   .param_f = (int32_t *)(cfg + 28),
+					   .param_g = (int32_t *)(cfg + 32),
+					   .param_h = (int32_t *)(cfg + 36)};	
 
 	// Open contiguous data memory section
 	if((fd = open("/dev/cma", O_RDWR)) < 0)	{
@@ -347,21 +336,25 @@ int main () {
 				"trigger: %d \n"
 				"mode: %d\n"
 				"CIC_divider: %f\n"
-				"fixed_freq: %d\n"
-				"start_freq: %d\n"
-				"stop_freq: %d\n"
-				"a_const: %d\n"
-				"b_const: %d\n"
-				"interval: %d\n\n",
+				"param_a: %d\n"
+				"param_b: %d\n"
+				"param_c: %d\n"
+				"param_d: %d\n"
+				"param_e: %d\n"
+				"param_f: %d\n"
+				"param_g: %d\n"
+				"param_h: %d\n\n",
 				(*(system_regs.rx_rst) & TRIG_MASK) >> 2,
 				(*(system_regs.rx_rst) & MODE_MASK) >> 6,
 				(float)125.0e6 / *(params.rx_rate),
-				*(params.fixed_phase),
-				*(params.start_freq),
-				*(params.stop_freq),
-				*(params.a_const),
-				*(params.b_const),
-				*(params.interval)
+				*(params.param_a),
+				*(params.param_b),
+				*(params.param_c),
+				*(params.param_d),
+				*(params.param_e),
+				*(params.param_f),
+				*(params.param_g),
+				*(params.param_h)
 				);
 
 		printf("reset complete\n");
@@ -369,7 +362,7 @@ int main () {
 		
 		while (!reset_due && !interrupted) {
 			// Await connection from GUI
-			// Execution should block in this accept call until a client connects		
+			// Execution should block in this accept call until a client connects	
 			if((sock_client = accept(sock_server, NULL, NULL)) < 0)	{
 				perror("accept");
 				return EXIT_FAILURE;
@@ -386,7 +379,7 @@ int main () {
 
 				bytes_to_send = 0;
 
-				if (current_config.mode == 0) {
+				/*if (current_config.mode == 0) {
 					*(params.fixed_phase) = (uint32_t)floor(current_config.fixed_freq / 125.0e6 * (1<<30) + 0.5);
 					*(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config.mode << 6));
 					printf("Mode changed to %d\n", current_config.mode);
@@ -401,7 +394,16 @@ int main () {
 					*(params.b_const) = current_config.b_const;
 					*(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config.mode << 6));
 					printf("Mode changed to %d\n", current_config.mode);
-				}
+				}*/
+				*(params.param_a) = current_config.param_a;
+				*(params.param_b) = current_config.param_b;
+				*(params.param_c) = current_config.param_c;
+				*(params.param_d) = current_config.param_d;
+				*(params.param_e) = current_config.param_e;
+				*(params.param_f) = current_config.param_f;
+				*(params.param_g) = current_config.param_g;
+				*(params.param_h) = current_config.param_h;
+				*(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config.mode << 6));
 				reset_due = true;
 			}
 
