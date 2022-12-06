@@ -248,7 +248,7 @@ int main () {
 	sched_setaffinity(0, sizeof(cpu_set_t), &mask);*/
 
 //// write bitstream to FPGA
-	system("cat /usr/src/feedback.bit > /dev/xdevcfg ");
+	system("cat /usr/src/system_wrapper.bit > /dev/xdevcfg ");
 
 //// Shared memory configuration
 	// Open GPIO memory section
