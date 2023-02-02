@@ -23,7 +23,7 @@
 #define FIXED_FREQ_INIT 65536			// 1Hz			
 #define SAMPLING_DIVIDER_INIT 1250  	// 100 kHz
 
-#define MODE_MASK 192
+#define MODE_MASK 224
 #define TRIG_MASK 4
 #define CONFIG_ACK 2
 
@@ -142,7 +142,7 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 		current_config_struct->trigger = fetched_config_struct->trigger;
 		
 		// mode
-		if (fetched_config_struct->mode < 4) {
+		if (fetched_config_struct->mode < 9) {
 			current_config_struct->mode = fetched_config_struct->mode;
 		}
 
@@ -345,7 +345,7 @@ int main () {
 				"param_g: %d\n"
 				"param_h: %d\n\n",
 				(*(system_regs.rx_rst) & TRIG_MASK) >> 2,
-				(*(system_regs.rx_rst) & MODE_MASK) >> 6,
+				(*(system_regs.rx_rst) & MODE_MASK) >> 5,
 				(float)125.0e6 / *(params.rx_rate),
 				*(params.param_a),
 				*(params.param_b),
@@ -403,7 +403,7 @@ int main () {
 				*(params.param_f) = current_config.param_f;
 				*(params.param_g) = current_config.param_g;
 				*(params.param_h) = current_config.param_h;
-				*(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config.mode << 6));
+				*(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config.mode << 5));
 				reset_due = true;
 			}
 
