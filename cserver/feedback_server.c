@@ -26,13 +26,32 @@
 #define MODE_MASK 224
 #define TRIG_MASK 4
 #define CONFIG_ACK 2
+#define CONTINUOUS_MASK 3
+#define FAST_MODE_MASK 4
+#define CH1_INPUT_MASK 0
+#define CH1_MODE_MASK 30
+#define CH2_INPUT_MASK 0
+#define CH2_MODE_MASK 30
+#define CBC_INPUT_MASK 0
+#define CBC_VEL_EXT_MASK 1
+#define CBC_DISP_EXT_MASK 2
+#define CBC_POLY_TARGET_MASK 3
 
 int interrupted = 0;
 
+// Using 16-bit uint as smallest datatype to avoid packing difficulty.
 typedef struct config_struct {
 	uint16_t trigger;
-	uint16_t mode;
-	uint16_t CIC_divider;
+	uint16_t continuous_mode;
+	uint16_t fast_mode;
+	uint16_t CH1_mode;
+	uint16_t CH2_mode;
+	uint16_t CH1_input;
+	uint16_t CH2_input;
+	uint16_t CBC_input;
+	uint16_t CBC_velocity_ext;
+	uint16_t CBC_displacement_ext;
+	uint16_t CBC_polynomial_target;
 	int32_t param_a;
 	int32_t param_b;
 	int32_t param_c;
@@ -41,6 +60,12 @@ typedef struct config_struct {
 	int32_t param_f;
 	int32_t param_g;
 	int32_t param_h;
+	int32_t param_i;
+	int32_t param_j;
+	int32_t param_k;
+	int32_t param_l;
+	int32_t param_m;
+	int32_t param_n;
 } config_t;
 
 typedef struct system_pointers {
@@ -51,6 +76,10 @@ typedef struct system_pointers {
 } system_pointers_t;
 
 typedef struct parameters {
+	volatile int32_t *settings;
+	volatile int32_t *CH1_settings;
+	volatile int32_t *CH2_settings;
+	volatile int32_t *CBC_settings;
 	volatile int32_t *param_a;
 	volatile int32_t *param_b;
 	volatile int32_t *param_c;
@@ -59,7 +88,12 @@ typedef struct parameters {
 	volatile int32_t *param_f;
 	volatile int32_t *param_g;
 	volatile int32_t *param_h;
-	volatile uint16_t *rx_rate;
+	volatile int32_t *param_i;
+	volatile int32_t *param_j;
+	volatile int32_t *param_k;
+	volatile int32_t *param_l;
+	volatile int32_t *param_m;
+	volatile int32_t *param_n;
 } params_t;
 
 void signal_handler(int sig) {
@@ -101,7 +135,7 @@ uint32_t get_socket_type(int sock_client)
 uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* fetched_config_struct, system_pointers_t *system_pointers) {
 	
 	//Block waiting for config struct
-	// TODO: Do we need to call mutliple times to ensure we receive the whole thing? <-- no it's only called if the massage fits sizeof(config_t) 
+	 
 	if(recv(sock_client, fetched_config_struct, sizeof(config_t), 0) > 0) {	
 		// Can't guarantee checking whole struct for inequality due to padding
 		// Can replace with a whole struct overwrite if required but this will depend on overhead
@@ -112,8 +146,16 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 		//Print all fetched config
 		printf("\nfetched config: \n"
 				"trigger: %d\n"
-				"mode: %d\n"
-				"CIC_divider: %d\n"
+				"Continuous output: %d\n"
+				"Fast mode: %d\n"
+				"CH1_mode: %d\n"
+				"CH2_mode: %d\n"
+				"CH1_input: %d\n"
+				"CH2_input: %d\n"
+				"CBC_input: %d\n"
+				"CBC_velocity_ext: %d\n"
+				"CBC_displacement_ext: %d\n"
+				"CBC_polynomial_target: %d\n"
 				"param_a: %d\n"
 				"param_b: %d\n"
 				"param_c: %d\n"
@@ -121,10 +163,24 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 				"param_e: %d\n"
 				"param_f: %d\n"
 				"param_g: %d\n"
-				"param_h: %d\n\n",
+				"param_h: %d\n"
+				"param_i: %d\n"
+				"param_j: %d\n"
+				"param_k: %d\n"
+				"param_l: %d\n"
+				"param_m: %d\n"
+				"param_n: %d\n\n",
 				fetched_config_struct->trigger,
-				fetched_config_struct->mode,
-				fetched_config_struct->CIC_divider,
+				fetched_config_struct->continuous_output,
+				fetched_config_struct->fast_mode,
+				fetched_config_struct->CH1_mode,
+				fetched_config_struct->CH2_mode,
+				fetched_config_struct->CH1_input,
+				fetched_config_struct->CH2_input,
+				fetched_config_struct->CBC_input,
+				fetched_config_struct->CBC_velocity_ext,
+				fetched_config_struct->CBC_displacement_ext,
+				fetched_config_struct->CBC_polynomial_target,
 				fetched_config_struct->param_a,
 				fetched_config_struct->param_b,
 				fetched_config_struct->param_c,
@@ -132,7 +188,13 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 				fetched_config_struct->param_e,
 				fetched_config_struct->param_f,
 				fetched_config_struct->param_g,
-				fetched_config_struct->param_h);
+				fetched_config_struct->param_h,
+				fetched_config_struct->param_i,
+				fetched_config_struct->param_j,
+				fetched_config_struct->param_k,
+				fetched_config_struct->param_l,
+				fetched_config_struct->param_m,
+				fetched_config_struct->param_n);
 		
 		// Trigger
 		if (fetched_config_struct->trigger == 0) {
@@ -141,15 +203,59 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 		}
 		current_config_struct->trigger = fetched_config_struct->trigger;
 		
-		// mode
-		if (fetched_config_struct->mode < 9) {
-			current_config_struct->mode = fetched_config_struct->mode;
+		// CH1 mode
+		if (fetched_config_struct->CH1_mode < 16) {
+			current_config_struct->CH1_mode = fetched_config_struct->CH1_mode;
+		}
+	
+		// CH2 mode - write to OFF if in CBC mode
+		if (current_config_strict->CH1_mode != 7) {
+			current_config_struct->CH2_mode = 15;
+		}
+		else if (fetched_config_struct->CH2_mode < 16) {
+			current_config_struct->CH2_mode = fetched_config_struct->CH1_mode;
+		}		
+		
+		// Continuous Output
+		if (fetched_config_struct->continuous_output < 2) {
+			current_config_struct->continuous_output = fetched_config_struct->continuous_output;
 		}
 
-		// CIC Devider
-		if (fetched_config_struct->CIC_divider < 6250) {
-			current_config_struct->CIC_divider = fetched_config_struct->CIC_divider;
+		// Fast Mode
+		if (fetched_config_struct->fast_mode < 2) {
+			current_config_struct->fast_mode = fetched_config_struct->fast_mode;
 		}
+
+		// CH1 Input
+		if (fetched_config_struct->CH1_input < 2) {
+			current_config_struct->CH1_input = fetched_config_struct->CH1_input;
+		}
+
+		// CH2 Input
+		if (fetched_config_struct->CH2_input < 2) {
+			current_config_struct->CH2_input = fetched_config_struct->CH2_input;
+		}
+
+		// CBC Input
+		if (fetched_config_struct->CBC_input < 2) {
+			current_config_struct->CBC_input = fetched_config_struct->CBC_input;
+		}
+
+		// CBC Velocity Ext
+		if (fetched_config_struct->CBC_velocity_ext < 2) {
+			current_config_struct->CBC_velocity_ext = fetched_config_struct->CBC_velocity_ext;
+		}
+
+		// CBC Displacement Ext
+		if (fetched_config_struct->CBC_displacement_ext < 2) {
+			current_config_struct->CBC_displacement_ext = fetched_config_struct->CBC_displacement_ext;
+		}
+
+		// CBC Polynomial Target
+		if (fetched_config_struct->CBC_polynomial_target < 2) {
+			current_config_struct->CBC_polynomial_target = fetched_config_struct->CBC_polynomial_target;
+		}
+
 
 		// Parameter
 		current_config_struct->param_a = fetched_config_struct->param_a;
@@ -160,7 +266,12 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 		current_config_struct->param_f = fetched_config_struct->param_f;
 		current_config_struct->param_g = fetched_config_struct->param_g;
 		current_config_struct->param_h = fetched_config_struct->param_h;
-
+		current_config_struct->param_i = fetched_config_struct->param_i;
+		current_config_struct->param_j = fetched_config_struct->param_j;
+		current_config_struct->param_k = fetched_config_struct->param_k;
+		current_config_struct->param_l = fetched_config_struct->param_l;
+		current_config_struct->param_m = fetched_config_struct->param_m;
+		current_config_struct->param_n = fetched_config_struct->param_n;
 	}	
 }
 
@@ -222,31 +333,34 @@ int main () {
 	bool reset_due = false;
 
 	// Initialise config structs - current and next
-	config_t fetched_config, current_config = { .trigger = 0,
-												.mode = 0,
-												.CIC_divider = SAMPLING_DIVIDER_INIT,
-					    						.param_a = FIXED_FREQ_INIT,
-												.param_b = 0,
-												.param_c = 0,
-												.param_d = 0,
-												.param_e = 0,
-												.param_f = 0,
-												.param_g = 0,
-												.param_h = 0};
-
-	/*
-	//cpu_set_t mask; 
-	//struct sched_param param;
-	// Unused code from Pavel Demin's adc_test. Comments are my understanding of their function. 
-	memset(&param, 0, sizeof(param));     						// Initialize memory of scheduler parameter block to 0?
-	param.sched_priority = sched_get_priority_max(SCHED_FIFO);  // Set max priority for FIFO buffer?
-	sched_setscheduler(0, SCHED_FIFO, &param);					// Set scheduler with sched priority
+	config_t fetched_config, current_config = {
+		.trigger = 0,
+		.continuous_mode = 0,
+		.fast_mode = 0,
+		.CH1_mode = 0,
+		.CH2_mode = 0,
+		.CH1_input = 0,
+		.CH2_input = 0,
+		.CBC_input = 0,
+		.CBC_velocity_ext = 0,
+		.CBC_displacement_ext = 0,
+		.CBC_polynomial_target = 0,
+		.param_a = 0,
+		.param_b = 0,
+		.param_c = 0,
+		.param_d = 0,
+		.param_e = 0,
+		.param_f = 0,
+		.param_g = 0,
+		.param_h = 0,
+		.param_i = 0,
+		.param_j = 0,
+		.param_k = 0,
+		.param_l = 0,
+		.param_m = 0,
+		.param_n = 0
+	};
 	
-	//Pick CPU
-	CPU_ZERO(&mask);
-	CPU_SET(1, &mask);
-	sched_setaffinity(0, sizeof(cpu_set_t), &mask);*/
-
 //// write bitstream to FPGA
 	system("cat /usr/src/system_wrapper.bit > /dev/xdevcfg ");
 
@@ -269,15 +383,24 @@ int main () {
 									.rx_cntr = (uint32_t *)(sts + 12)};
 	
 	//Customisable parameter space
-	params_t params = {.rx_rate = (uint16_t *)(cfg + 2),
-					   .param_a = (int32_t *)(cfg + 8),
-					   .param_b = (int32_t *)(cfg + 12),
-					   .param_c = (int32_t *)(cfg + 16),
-					   .param_d = (int32_t *)(cfg + 20),
-					   .param_e = (int32_t *)(cfg + 24),
-					   .param_f = (int32_t *)(cfg + 28),
-					   .param_g = (int32_t *)(cfg + 32),
-					   .param_h = (int32_t *)(cfg + 36)};	
+	params_t params = { .config = (int8_t *)(cfg + 0),
+						.CH1_settings = (int8_t *)(cfg + 1),
+						.CH2_settings = (int8_t *)(cfg + 2),
+						.CBC_settings = (int8_t *)(cfg + 3),
+	     				.param_a = (int32_t *)(cfg + 8),
+					    .param_b = (int32_t *)(cfg + 12),
+					    .param_c = (int32_t *)(cfg + 16),
+					    .param_d = (int32_t *)(cfg + 20),
+					    .param_e = (int32_t *)(cfg + 24),
+					    .param_f = (int32_t *)(cfg + 28),
+					    .param_g = (int32_t *)(cfg + 32),
+					    .param_h = (int32_t *)(cfg + 36),
+					    .param_i = (int32_t *)(cfg + 40),
+					    .param_j = (int32_t *)(cfg + 44),
+					    .param_k = (int32_t *)(cfg + 48),
+					    .param_l = (int32_t *)(cfg + 52),
+					    .param_m = (int32_t *)(cfg + 56),
+					    .param_n = (int32_t *)(cfg + 60)}};	
 
 	// Open contiguous data memory section
 	if((fd = open("/dev/cma", O_RDWR)) < 0)	{
@@ -333,9 +456,62 @@ int main () {
 		
 		// print saved channel parameters			
 		printf("\nSaved config: \n"
+		"trigger: %d \n"
+		"continuous_output: %d\n"
+		"fast_mode: %d\n"
+		"CH1_input_select: %d\n"
+		"CH1_Feedback_mode: %d\n"
+		"CH2_input_select: %d\n"
+		"CH2_Feedback_mode: %d\n"
+		"CBC_input_select: %d\n"
+		"CBC_velocity_ext: %d\n"
+		"CBC_displacement_ext: %d\n"
+		"CBC_polynomial_target: %d\n"
+		"ram_address: %ld\n"
+		"param_a: %d\n"
+		"param_b: %d\n"
+		"param_c: %d\n"
+		"param_d: %d\n"
+		"param_e: %d\n"
+		"param_f: %d\n"
+		"param_g: %d\n"
+		"param_h: %d\n"
+		"param_i: %d\n"
+		"param_j: %d\n"
+		"param_k: %d\n"
+		"param_l: %d\n"
+		"param_m: %d\n"
+		"param_n: %d\n\n",
+		(*(system_regs.rx_rst) & TRIG_MASK) >> TRIG_MASK,
+		(*(params.config) & (1 << CONTINUOUS_MASK)) >> CONTINUOUS_MASK,
+		(*(params.config) & (1 << FAST_MODE_MASK)) >> FAST_MODE_MASK,
+		(*(params.CH1_settings) & (1 << CH1_INPUT_MASK)) >> CH1_INPUT_MASK,
+		(*(params.CH1_settings) & (CH1_MODE_MASK) >> 1,
+		(*(params.CH2_settings) & (1 << CH2_INPUT_MASK)) >> CH2_INPUT_MASK,
+		(*(params.CH2_settings) & (CH2_MODE_MASK) >> 1,
+		(*(params.CBC_settings) & (1 << CBC_INPUT_MASK)) >> CBC_INPUT_MASK,
+		(*(params.CBC_settings) & (1 << CBC_VEL_EXT_MASK)) >> CBC_VEL_EXT_MASK,
+		(*(params.CBC_settings) & (1 << CBC_DISP_EXT_MASK)) >> CBC_DISP_EXT_MASK,
+		(*(params.CBC_settings) & (1 << CBC_POLY_TARGET_MASK)) >> CBC_POLY_TARGET_MASK,
+		*(params.ram_address),
+		*(params.param_a),
+		*(params.param_b),
+		*(params.param_c),
+		*(params.param_d),
+		*(params.param_e),
+		*(params.param_f),
+		*(params.param_g),
+		*(params.param_h),
+		*(params.param_i),
+		*(params.param_j),
+		*(params.param_k),
+		*(params.param_l),
+		*(params.param_m),
+		*(params.param_n)
+		);
+		printf("\nSaved config: \n"
 				"trigger: %d \n"
 				"mode: %d\n"
-				"CIC_divider: %f\n"
 				"param_a: %d\n"
 				"param_b: %d\n"
 				"param_c: %d\n"
@@ -343,7 +519,13 @@ int main () {
 				"param_e: %d\n"
 				"param_f: %d\n"
 				"param_g: %d\n"
-				"param_h: %d\n\n",
+				"param_h: %d\n"
+				"param_i: %d\n"
+				"param_j: %d\n"
+				"param_k: %d\n"
+				"param_l: %d\n"
+				"param_m: %d\n"
+				"param_n: %d\n\n",
 				(*(system_regs.rx_rst) & TRIG_MASK) >> 2,
 				(*(system_regs.rx_rst) & MODE_MASK) >> 5,
 				(float)125.0e6 / *(params.rx_rate),
@@ -378,24 +560,28 @@ int main () {
 				get_config(sock_client, &current_config, &fetched_config, &system_regs);
 
 				bytes_to_send = 0;
-
-				/*if (current_config.mode == 0) {
-					*(params.fixed_phase) = (uint32_t)floor(current_config.fixed_freq / 125.0e6 * (1<<30) + 0.5);
-					*(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config.mode << 6));
-					printf("Mode changed to %d\n", current_config.mode);
-				} else if (current_config.mode == 1) {
-					*(params.start_freq) = current_config.start_freq;
-					*(params.stop_freq) = current_config.stop_freq;
-					*(params.interval) = current_config.interval;
-					*(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config.mode << 6));
-					printf("Mode changed to %d\n", current_config.mode);
-				} else if (current_config.mode == 2) {
-					*(params.a_const) = current_config.a_const;
-					*(params.b_const) = current_config.b_const;
-					*(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config.mode << 6));
-					printf("Mode changed to %d\n", current_config.mode);
-				}*/
-				*(params.param_a) = current_config.param_a;
+				
+				//Update system config parameters, preserving resets.
+				*(params.config)  = (*(params.config) & 0x03) |
+									(current_config.continuous_mode << 3) |
+                   					(current_config.fast_mode << 4);
+                   					
+                //update CH1 toggles
+ 				*(params.CH1_settings) = (current_config.CH1_input << 0) |
+                          				 (current_config.CH1_mode << 1); 	
+                         
+				//Update CH2 toggles
+				*(params.CH2_settings) = (current_config.CH2_input << 0) |
+                          				 (current_config.CH2_mode << 1);
+				
+				//UPdate CBC toggles
+				*(params.CBC_settings) = (current_config.CBC_input << 0) |
+                         				 (current_config.CBC_velocity_ext << 1) |
+                         				 (current_config.CBC_displacement_ext << 2) |
+                         				 (current_config.CBC_polynomial_target << 3);
+                 
+                //Update numerical parameters        				 
+		    	*(params.param_a) = current_config.param_a;
 				*(params.param_b) = current_config.param_b;
 				*(params.param_c) = current_config.param_c;
 				*(params.param_d) = current_config.param_d;
@@ -403,6 +589,13 @@ int main () {
 				*(params.param_f) = current_config.param_f;
 				*(params.param_g) = current_config.param_g;
 				*(params.param_h) = current_config.param_h;
+				*(params.param_c) = current_config.param_i;
+				*(params.param_d) = current_config.param_j;
+				*(params.param_e) = current_config.param_k;
+				*(params.param_f) = current_config.param_l;
+				*(params.param_g) = current_config.param_m;
+				*(params.param_h) = current_config.param_n;
+				
 				*(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config.mode << 5));
 				reset_due = true;
 			}
