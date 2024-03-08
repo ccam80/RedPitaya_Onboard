@@ -171,7 +171,7 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 				"param_m: %d\n"
 				"param_n: %d\n\n",
 				fetched_config_struct->trigger,
-				fetched_config_struct->continuous_output,
+				fetched_config_struct->continuous_mode,
 				fetched_config_struct->fast_mode,
 				fetched_config_struct->CH1_mode,
 				fetched_config_struct->CH2_mode,
@@ -217,8 +217,8 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 		}		
 		
 		// Continuous Output
-		if (fetched_config_struct->continuous_output < 2) {
-			current_config_struct->continuous_output = fetched_config_struct->continuous_output;
+		if (fetched_config_struct->continuous_mode < 2) {
+			current_config_struct->continuous_mode = fetched_config_struct->continuous_output;
 		}
 
 		// Fast Mode
@@ -383,7 +383,7 @@ int main () {
 									.rx_cntr = (uint32_t *)(sts + 12)};
 	
 	//Customisable parameter space
-	params_t params = { .config = (int8_t *)(cfg + 0),
+	params_t params = { .settings = (int8_t *)(cfg + 0),
 						.CH1_settings = (int8_t *)(cfg + 1),
 						.CH2_settings = (int8_t *)(cfg + 2),
 						.CBC_settings = (int8_t *)(cfg + 3),
@@ -400,7 +400,7 @@ int main () {
 					    .param_k = (int32_t *)(cfg + 48),
 					    .param_l = (int32_t *)(cfg + 52),
 					    .param_m = (int32_t *)(cfg + 56),
-					    .param_n = (int32_t *)(cfg + 60)}};	
+					    .param_n = (int32_t *)(cfg + 60)};	
 
 	// Open contiguous data memory section
 	if((fd = open("/dev/cma", O_RDWR)) < 0)	{
@@ -451,8 +451,7 @@ int main () {
 		*(system_regs.rx_rst) &= ~1;
 		usleep(100);
 		*(system_regs.rx_rst) &= ~2;
-		// Set sample rate
-		*(params.rx_rate) = current_config.CIC_divider;
+
 		
 		// print saved channel parameters			
 		printf("\nSaved config: \n"
@@ -483,17 +482,17 @@ int main () {
 		"param_m: %d\n"
 		"param_n: %d\n\n",
 		(*(system_regs.rx_rst) & TRIG_MASK) >> TRIG_MASK,
-		(*(params.config) & (1 << CONTINUOUS_MASK)) >> CONTINUOUS_MASK,
-		(*(params.config) & (1 << FAST_MODE_MASK)) >> FAST_MODE_MASK,
+		(*(params.settings) & (1 << CONTINUOUS_MASK)) >> CONTINUOUS_MASK,
+		(*(params.settings) & (1 << FAST_MODE_MASK)) >> FAST_MODE_MASK,
 		(*(params.CH1_settings) & (1 << CH1_INPUT_MASK)) >> CH1_INPUT_MASK,
-		(*(params.CH1_settings) & (CH1_MODE_MASK) >> 1,
+		(*(params.CH1_settings) & (CH1_MODE_MASK)) >> 1,
 		(*(params.CH2_settings) & (1 << CH2_INPUT_MASK)) >> CH2_INPUT_MASK,
-		(*(params.CH2_settings) & (CH2_MODE_MASK) >> 1,
+		(*(params.CH2_settings) & (CH2_MODE_MASK)) >> 1,
 		(*(params.CBC_settings) & (1 << CBC_INPUT_MASK)) >> CBC_INPUT_MASK,
 		(*(params.CBC_settings) & (1 << CBC_VEL_EXT_MASK)) >> CBC_VEL_EXT_MASK,
 		(*(params.CBC_settings) & (1 << CBC_DISP_EXT_MASK)) >> CBC_DISP_EXT_MASK,
 		(*(params.CBC_settings) & (1 << CBC_POLY_TARGET_MASK)) >> CBC_POLY_TARGET_MASK,
-		*(params.ram_address),
+		*(system.ram),
 		*(params.param_a),
 		*(params.param_b),
 		*(params.param_c),
