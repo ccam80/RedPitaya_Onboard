@@ -209,7 +209,7 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 		}
 	
 		// CH2 mode - write to OFF if in CBC mode
-		if (current_config_strict->CH1_mode != 7) {
+		if (current_config_struct->CH1_mode != 7) {
 			current_config_struct->CH2_mode = 15;
 		}
 		else if (fetched_config_struct->CH2_mode < 16) {
@@ -218,7 +218,7 @@ uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* 
 		
 		// Continuous Output
 		if (fetched_config_struct->continuous_mode < 2) {
-			current_config_struct->continuous_mode = fetched_config_struct->continuous_output;
+			current_config_struct->continuous_mode = fetched_config_struct->continuous_mode;
 		}
 
 		// Fast Mode
@@ -466,7 +466,7 @@ int main () {
 		"CBC_velocity_ext: %d\n"
 		"CBC_displacement_ext: %d\n"
 		"CBC_polynomial_target: %d\n"
-		"ram_address: %ld\n"
+		// "ram_address: %ld\n"
 		"param_a: %d\n"
 		"param_b: %d\n"
 		"param_c: %d\n"
@@ -492,7 +492,7 @@ int main () {
 		(*(params.CBC_settings) & (1 << CBC_VEL_EXT_MASK)) >> CBC_VEL_EXT_MASK,
 		(*(params.CBC_settings) & (1 << CBC_DISP_EXT_MASK)) >> CBC_DISP_EXT_MASK,
 		(*(params.CBC_settings) & (1 << CBC_POLY_TARGET_MASK)) >> CBC_POLY_TARGET_MASK,
-		*(system.ram),
+		// *(system_regs.ram),
 		*(params.param_a),
 		*(params.param_b),
 		*(params.param_c),
@@ -508,35 +508,6 @@ int main () {
 		*(params.param_m),
 		*(params.param_n)
 		);
-		printf("\nSaved config: \n"
-				"trigger: %d \n"
-				"mode: %d\n"
-				"param_a: %d\n"
-				"param_b: %d\n"
-				"param_c: %d\n"
-				"param_d: %d\n"
-				"param_e: %d\n"
-				"param_f: %d\n"
-				"param_g: %d\n"
-				"param_h: %d\n"
-				"param_i: %d\n"
-				"param_j: %d\n"
-				"param_k: %d\n"
-				"param_l: %d\n"
-				"param_m: %d\n"
-				"param_n: %d\n\n",
-				(*(system_regs.rx_rst) & TRIG_MASK) >> 2,
-				(*(system_regs.rx_rst) & MODE_MASK) >> 5,
-				(float)125.0e6 / *(params.rx_rate),
-				*(params.param_a),
-				*(params.param_b),
-				*(params.param_c),
-				*(params.param_d),
-				*(params.param_e),
-				*(params.param_f),
-				*(params.param_g),
-				*(params.param_h)
-				);
 
 		printf("reset complete\n");
 		reset_due = false;
@@ -561,7 +532,7 @@ int main () {
 				bytes_to_send = 0;
 				
 				//Update system config parameters, preserving resets.
-				*(params.config)  = (*(params.config) & 0x03) |
+				*(params.settings)  = (*(params.settings) & 0x03) |
 									(current_config.continuous_mode << 3) |
                    					(current_config.fast_mode << 4);
                    					
@@ -595,7 +566,7 @@ int main () {
 				*(params.param_g) = current_config.param_m;
 				*(params.param_h) = current_config.param_n;
 				
-				*(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config.mode << 5));
+				// *(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config. << 5));
 				reset_due = true;
 			}
 
