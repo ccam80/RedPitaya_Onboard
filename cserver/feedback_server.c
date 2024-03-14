@@ -76,10 +76,10 @@ typedef struct system_pointers {
 } system_pointers_t;
 
 typedef struct parameters {
-	volatile int32_t *settings;
-	volatile int32_t *CH1_settings;
-	volatile int32_t *CH2_settings;
-	volatile int32_t *CBC_settings;
+	volatile int8_t *settings;
+	volatile int8_t *CH1_settings;
+	volatile int8_t *CH2_settings;
+	volatile int8_t *CBC_settings;
 	volatile int32_t *param_a;
 	volatile int32_t *param_b;
 	volatile int32_t *param_c;
