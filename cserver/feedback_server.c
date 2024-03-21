@@ -45,7 +45,7 @@ typedef struct system_pointers {
 	volatile uint32_t *rx_addr;
 	volatile uint32_t *rx_cntr;
 	volatile uint8_t *rx_rst;
-	volatile uint32_t *ram;
+	void *ram;
 } system_pointers_t;
 
 // This is bit-packed, type-checked and range-bound in the python API, removing the need for a separate config struct type.
@@ -129,7 +129,7 @@ uint32_t get_socket_type(int sock_client)
 	}
 }
 
-uint32_t get_config(int sock_client, params_t* current_config_struct, params_t* fetched_config_struct, system_pointers_t *system_pointers) {
+uint32_t get_config(int sock_client, param_vals_t* current_config_struct, param_vals_t* fetched_config_struct, system_pointers_t *system_pointers) {
 	
 	//Block waiting for config struct
 	 
