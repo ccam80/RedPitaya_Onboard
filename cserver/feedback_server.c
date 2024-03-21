@@ -49,7 +49,7 @@ typedef struct system_pointers {
 } system_pointers_t;
 
 // This is bit-packed, type-checked and range-bound in the python API, removing the need for a separate config struct type.
-typedef struct parameters {
+typedef struct parameter_pointers {
 	volatile int8_t  *settings;
 	volatile int8_t  *CH1_settings;
 	volatile int8_t  *CH2_settings;
@@ -69,6 +69,29 @@ typedef struct parameters {
 	volatile int32_t *param_m;
 	volatile int32_t *param_n;
 } params_t;
+
+// This struct is to contain the values obtained from a fetch - it may not be required, as I could probably more 
+// cleverly use the params_t struct more cleverly, but it's here for now.
+typedef struct parameter_values {
+	volatile int8_t  settings;
+	volatile int8_t  CH1_settings;
+	volatile int8_t  CH2_settings;
+	volatile int8_t  CBC_settings;
+	volatile int32_t param_a;
+	volatile int32_t param_b;
+	volatile int32_t param_c;
+	volatile int32_t param_d;
+	volatile int32_t param_e;
+	volatile int32_t param_f;
+	volatile int32_t param_g;
+	volatile int32_t param_h;
+	volatile int32_t param_i;
+	volatile int32_t param_j;
+	volatile int32_t param_k;
+	volatile int32_t param_l;
+	volatile int32_t param_m;
+	volatile int32_t param_n;
+} param_vals_t;
 
 void signal_handler(int sig) {
 	interrupted = 1;
@@ -238,7 +261,7 @@ int main () {
 	bool reset_due = false;
 
 	// Initialise config structs - current and next
-	params_t fetched_config, current_config = {
+	param_vals_t fetched_config, current_config = {
 		.settings = 0,
 		.CH1_settings = 0,
 		.CH2_settings = 0,
@@ -432,7 +455,7 @@ int main () {
 				bytes_to_send = 0;
 				
 				//Update system config parameters, preserving resets.
-				*(params.settings) = (*(params.settings) & 0x03) | (*(current_config.settings) & ~0x03);
+				*(params.settings) = (*(params.settings) & 0x03) | ((current_config.settings) & ~0x03);
                 //update CH1 toggles
  				*(params.CH1_settings) = (current_config.CH1_settings);	
 				//Update CH2 toggles
