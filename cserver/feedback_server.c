@@ -162,35 +162,35 @@ uint32_t get_config(int sock_client, param_vals_t* current_config_struct, param_
 		"param_l: %d\n"
 		"param_m: %d\n"
 		"param_n: %d\n\n",
-		(*(fetched_config_struct->settings) & TRIG_MASK) >> TRIG_MASK,
-		(*(fetched_config_struct->settings) & (1 << CONTINUOUS_MASK)) >> CONTINUOUS_MASK,
-		(*(fetched_config_struct->settings) & (1 << FAST_MODE_MASK)) >> FAST_MODE_MASK,
-		(*(fetched_config_struct->CH1_settings) & (1 << CH1_INPUT_MASK)) >> CH1_INPUT_MASK,
-		(*(fetched_config_struct->CH1_settings) & (CH1_MODE_MASK)) >> 1,
-		(*(fetched_config_struct->CH2_settings) & (1 << CH2_INPUT_MASK)) >> CH2_INPUT_MASK,
-		(*(fetched_config_struct->CH2_settings) & (CH2_MODE_MASK)) >> 1,
-		(*(fetched_config_struct->CBC_settings) & (1 << CBC_INPUT_MASK)) >> CBC_INPUT_MASK,
-		(*(fetched_config_struct->CBC_settings) & (1 << CBC_VEL_EXT_MASK)) >> CBC_VEL_EXT_MASK,
-		(*(fetched_config_struct->CBC_settings) & (1 << CBC_DISP_EXT_MASK)) >> CBC_DISP_EXT_MASK,
-		(*(fetched_config_struct->CBC_settings) & (1 << CBC_POLY_TARGET_MASK)) >> CBC_POLY_TARGET_MASK,
-		*(fetched_config_struct->param_a),
-		*(fetched_config_struct->param_b),
-		*(fetched_config_struct->param_c),
-		*(fetched_config_struct->param_d),
-		*(fetched_config_struct->param_e),
-		*(fetched_config_struct->param_f),
-		*(fetched_config_struct->param_g),
-		*(fetched_config_struct->param_h),
-		*(fetched_config_struct->param_i),
-		*(fetched_config_struct->param_j),
-		*(fetched_config_struct->param_k),
-		*(fetched_config_struct->param_l),
-		*(fetched_config_struct->param_m),
-		*(fetched_config_struct->param_n)
+		((fetched_config_struct->settings) & TRIG_MASK) >> TRIG_MASK,
+		((fetched_config_struct->settings) & (1 << CONTINUOUS_MASK)) >> CONTINUOUS_MASK,
+		((fetched_config_struct->settings) & (1 << FAST_MODE_MASK)) >> FAST_MODE_MASK,
+		(fetched_config_struct->CH1_settings & (1 << CH1_INPUT_MASK)) >> CH1_INPUT_MASK,
+		(fetched_config_struct->CH1_settings & CH1_MODE_MASK) >> 1,
+		(fetched_config_struct->CH2_settings & (1 << CH2_INPUT_MASK)) >> CH2_INPUT_MASK,
+		(fetched_config_struct->CH2_settings & CH2_MODE_MASK) >> 1,
+		(fetched_config_struct->CBC_settings & (1 << CBC_INPUT_MASK)) >> CBC_INPUT_MASK,
+		(fetched_config_struct->CBC_settings & (1 << CBC_VEL_EXT_MASK)) >> CBC_VEL_EXT_MASK,
+		(fetched_config_struct->CBC_settings & (1 << CBC_DISP_EXT_MASK)) >> CBC_DISP_EXT_MASK,
+		(fetched_config_struct->CBC_settings & (1 << CBC_POLY_TARGET_MASK)) >> CBC_POLY_TARGET_MASK,
+		(fetched_config_struct->param_a),
+		(fetched_config_struct->param_b),
+		(fetched_config_struct->param_c),
+		(fetched_config_struct->param_d),
+		(fetched_config_struct->param_e),
+		(fetched_config_struct->param_f),
+		(fetched_config_struct->param_g),
+		(fetched_config_struct->param_h),
+		(fetched_config_struct->param_i),
+		(fetched_config_struct->param_j),
+		(fetched_config_struct->param_k),
+		(fetched_config_struct->param_l),
+		(fetched_config_struct->param_m),
+		(fetched_config_struct->param_n)
 		);
 
 		//Break out and write trigger quickly (potentially not required, just beats a bit of overhead overwriting the whole struct.)
-		uint8_t fetched_trigger = (*fetched_config_struct->settings >> 2) & 0x01;
+		uint8_t fetched_trigger = (fetched_config_struct->settings >> 2) & 0x01;
 		
 		if (fetched_trigger == 0) {
 			*(system_pointers->rx_rst) &= ~TRIG_MASK;
@@ -389,7 +389,7 @@ int main () {
 		"CBC_velocity_ext: %d\n"
 		"CBC_displacement_ext: %d\n"
 		"CBC_polynomial_target: %d\n"
-		"ram_address: %ld\n"
+		// "ram_address: %ld\n"
 		"param_a: %d\n"
 		"param_b: %d\n"
 		"param_c: %d\n"
@@ -415,7 +415,7 @@ int main () {
 		(*(params.CBC_settings) & (1 << CBC_VEL_EXT_MASK)) >> CBC_VEL_EXT_MASK,
 		(*(params.CBC_settings) & (1 << CBC_DISP_EXT_MASK)) >> CBC_DISP_EXT_MASK,
 		(*(params.CBC_settings) & (1 << CBC_POLY_TARGET_MASK)) >> CBC_POLY_TARGET_MASK,
-		*(system_regs.ram),
+		// (*(system_regs.ram)),
 		*(params.param_a),
 		*(params.param_b),
 		*(params.param_c),
