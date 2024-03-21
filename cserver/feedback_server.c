@@ -20,66 +20,40 @@
 #define CMA_ALLOC _IOWR('Z', 0, uint32_t)
 
 // Starting RP Config
-#define FIXED_FREQ_INIT 65536			// 1Hz			
-#define SAMPLING_DIVIDER_INIT 1250  	// 100 kHz
+// #define FIXED_FREQ_INIT 65536			// 1Hz			
+// #define SAMPLING_DIVIDER_INIT 1250  	// 100 kHz
 
-#define MODE_MASK 224
-#define TRIG_MASK 4
-#define CONFIG_ACK 2
-#define CONTINUOUS_MASK 3
-#define FAST_MODE_MASK 4
-#define CH1_INPUT_MASK 0
+// #define MODE_MASK 224
+#define TRIG_MASK 4                         // bit 2
+#define CONFIG_ACK 2                        // just a hard coded number to send back to GUI
+#define CONTINUOUS_MASK 8					// bit 3
+#define FAST_MODE_MASK 16					// bit 4
+#define CH1_INPUT_MASK 1
 #define CH1_MODE_MASK 30
-#define CH2_INPUT_MASK 0
+#define CH2_INPUT_MASK 1
 #define CH2_MODE_MASK 30
-#define CBC_INPUT_MASK 0
-#define CBC_VEL_EXT_MASK 1
-#define CBC_DISP_EXT_MASK 2
-#define CBC_POLY_TARGET_MASK 3
+#define CBC_INPUT_MASK 1
+#define CBC_VEL_EXT_MASK 2
+#define CBC_DISP_EXT_MASK 4
+#define CBC_POLY_TARGET_MASK 8
 
 int interrupted = 0;
 
-// Using 16-bit uint as smallest datatype to avoid packing difficulty.
-typedef struct config_struct {
-	uint16_t trigger;
-	uint16_t continuous_mode;
-	uint16_t fast_mode;
-	uint16_t CH1_mode;
-	uint16_t CH2_mode;
-	uint16_t CH1_input;
-	uint16_t CH2_input;
-	uint16_t CBC_input;
-	uint16_t CBC_velocity_ext;
-	uint16_t CBC_displacement_ext;
-	uint16_t CBC_polynomial_target;
-	int32_t param_a;
-	int32_t param_b;
-	int32_t param_c;
-	int32_t param_d;
-	int32_t param_e;
-	int32_t param_f;
-	int32_t param_g;
-	int32_t param_h;
-	int32_t param_i;
-	int32_t param_j;
-	int32_t param_k;
-	int32_t param_l;
-	int32_t param_m;
-	int32_t param_n;
-} config_t;
+
 
 typedef struct system_pointers {
 	volatile uint32_t *rx_addr;
 	volatile uint32_t *rx_cntr;
 	volatile uint8_t *rx_rst;
-	void *ram;
+	volatile uint32_t *ram;
 } system_pointers_t;
 
+// This is bit-packed, type-checked and range-bound in the python API, removing the need for a separate config struct type.
 typedef struct parameters {
-	volatile int8_t *settings;
-	volatile int8_t *CH1_settings;
-	volatile int8_t *CH2_settings;
-	volatile int8_t *CBC_settings;
+	volatile int8_t  *settings;
+	volatile int8_t  *CH1_settings;
+	volatile int8_t  *CH2_settings;
+	volatile int8_t  *CBC_settings;
 	volatile int32_t *param_a;
 	volatile int32_t *param_b;
 	volatile int32_t *param_c;
@@ -132,150 +106,81 @@ uint32_t get_socket_type(int sock_client)
 	}
 }
 
-uint32_t get_config(int sock_client, config_t* current_config_struct, config_t* fetched_config_struct, system_pointers_t *system_pointers) {
+uint32_t get_config(int sock_client, params_t* current_config_struct, params_t* fetched_config_struct, system_pointers_t *system_pointers) {
 	
 	//Block waiting for config struct
 	 
-	if(recv(sock_client, fetched_config_struct, sizeof(config_t), 0) > 0) {	
-		// Can't guarantee checking whole struct for inequality due to padding
-		// Can replace with a whole struct overwrite if required but this will depend on overhead
-		//difference between conditional tests and write operations. 
+	if(recv(sock_client, fetched_config_struct, sizeof(params_t), 0) > 0) {	
+		//Print config struct from network and print individual elements according to interfaces.md, 
+		//except for resets (which are not sent)
+		printf("\nFetched Config: \n"
+		"trigger: %d \n"
+		"continuous_output: %d\n"
+		"fast_mode: %d\n"
+		"CH1_input_select: %d\n"
+		"CH1_Feedback_mode: %d\n"
+		"CH2_input_select: %d\n"
+		"CH2_Feedback_mode: %d\n"
+		"CBC_input_select: %d\n"
+		"CBC_velocity_ext: %d\n"
+		"CBC_displacement_ext: %d\n"
+		"CBC_polynomial_target: %d\n"
+		"param_a: %d\n"
+		"param_b: %d\n"
+		"param_c: %d\n"
+		"param_d: %d\n"
+		"param_e: %d\n"
+		"param_f: %d\n"
+		"param_g: %d\n"
+		"param_h: %d\n"
+		"param_i: %d\n"
+		"param_j: %d\n"
+		"param_k: %d\n"
+		"param_l: %d\n"
+		"param_m: %d\n"
+		"param_n: %d\n\n",
+		(*(fetched_config_struct->settings) & TRIG_MASK) >> TRIG_MASK,
+		(*(fetched_config_struct->settings) & (1 << CONTINUOUS_MASK)) >> CONTINUOUS_MASK,
+		(*(fetched_config_struct->settings) & (1 << FAST_MODE_MASK)) >> FAST_MODE_MASK,
+		(*(fetched_config_struct->CH1_settings) & (1 << CH1_INPUT_MASK)) >> CH1_INPUT_MASK,
+		(*(fetched_config_struct->CH1_settings) & (CH1_MODE_MASK)) >> 1,
+		(*(fetched_config_struct->CH2_settings) & (1 << CH2_INPUT_MASK)) >> CH2_INPUT_MASK,
+		(*(fetched_config_struct->CH2_settings) & (CH2_MODE_MASK)) >> 1,
+		(*(fetched_config_struct->CBC_settings) & (1 << CBC_INPUT_MASK)) >> CBC_INPUT_MASK,
+		(*(fetched_config_struct->CBC_settings) & (1 << CBC_VEL_EXT_MASK)) >> CBC_VEL_EXT_MASK,
+		(*(fetched_config_struct->CBC_settings) & (1 << CBC_DISP_EXT_MASK)) >> CBC_DISP_EXT_MASK,
+		(*(fetched_config_struct->CBC_settings) & (1 << CBC_POLY_TARGET_MASK)) >> CBC_POLY_TARGET_MASK,
+		*(fetched_config_struct->param_a),
+		*(fetched_config_struct->param_b),
+		*(fetched_config_struct->param_c),
+		*(fetched_config_struct->param_d),
+		*(fetched_config_struct->param_e),
+		*(fetched_config_struct->param_f),
+		*(fetched_config_struct->param_g),
+		*(fetched_config_struct->param_h),
+		*(fetched_config_struct->param_i),
+		*(fetched_config_struct->param_j),
+		*(fetched_config_struct->param_k),
+		*(fetched_config_struct->param_l),
+		*(fetched_config_struct->param_m),
+		*(fetched_config_struct->param_n)
+		);
 
-		//TODO: Consider having trigger in its own branch to speed up a trigger operation 
+		//Break out and write trigger quickly (potentially not required, just beats a bit of overhead overwriting the whole struct.)
+		uint8_t fetched_trigger = (*fetched_config_struct->settings >> 2) & 0x01;
 		
-		//Print all fetched config
-		printf("\nfetched config: \n"
-				"trigger: %d\n"
-				"Continuous output: %d\n"
-				"Fast mode: %d\n"
-				"CH1_mode: %d\n"
-				"CH2_mode: %d\n"
-				"CH1_input: %d\n"
-				"CH2_input: %d\n"
-				"CBC_input: %d\n"
-				"CBC_velocity_ext: %d\n"
-				"CBC_displacement_ext: %d\n"
-				"CBC_polynomial_target: %d\n"
-				"param_a: %d\n"
-				"param_b: %d\n"
-				"param_c: %d\n"
-				"param_d: %d\n"
-				"param_e: %d\n"
-				"param_f: %d\n"
-				"param_g: %d\n"
-				"param_h: %d\n"
-				"param_i: %d\n"
-				"param_j: %d\n"
-				"param_k: %d\n"
-				"param_l: %d\n"
-				"param_m: %d\n"
-				"param_n: %d\n\n",
-				fetched_config_struct->trigger,
-				fetched_config_struct->continuous_mode,
-				fetched_config_struct->fast_mode,
-				fetched_config_struct->CH1_mode,
-				fetched_config_struct->CH2_mode,
-				fetched_config_struct->CH1_input,
-				fetched_config_struct->CH2_input,
-				fetched_config_struct->CBC_input,
-				fetched_config_struct->CBC_velocity_ext,
-				fetched_config_struct->CBC_displacement_ext,
-				fetched_config_struct->CBC_polynomial_target,
-				fetched_config_struct->param_a,
-				fetched_config_struct->param_b,
-				fetched_config_struct->param_c,
-				fetched_config_struct->param_d,
-				fetched_config_struct->param_e,
-				fetched_config_struct->param_f,
-				fetched_config_struct->param_g,
-				fetched_config_struct->param_h,
-				fetched_config_struct->param_i,
-				fetched_config_struct->param_j,
-				fetched_config_struct->param_k,
-				fetched_config_struct->param_l,
-				fetched_config_struct->param_m,
-				fetched_config_struct->param_n);
-		
-		// Trigger
-		if (fetched_config_struct->trigger == 0) {
+		if (fetched_trigger == 0) {
 			*(system_pointers->rx_rst) &= ~TRIG_MASK;
 			printf("Trigger off \n\n");
-		}
-		current_config_struct->trigger = fetched_config_struct->trigger;
-		
-		// CH1 mode
-		if (fetched_config_struct->CH1_mode < 16) {
-			current_config_struct->CH1_mode = fetched_config_struct->CH1_mode;
-		}
-	
-		// CH2 mode - write to OFF if in CBC mode
-		if (current_config_struct->CH1_mode != 7) {
-			current_config_struct->CH2_mode = 15;
-		}
-		else if (fetched_config_struct->CH2_mode < 16) {
-			current_config_struct->CH2_mode = fetched_config_struct->CH1_mode;
-		}		
-		
-		// Continuous Output
-		if (fetched_config_struct->continuous_mode < 2) {
-			current_config_struct->continuous_mode = fetched_config_struct->continuous_mode;
-		}
-
-		// Fast Mode
-		if (fetched_config_struct->fast_mode < 2) {
-			current_config_struct->fast_mode = fetched_config_struct->fast_mode;
-		}
-
-		// CH1 Input
-		if (fetched_config_struct->CH1_input < 2) {
-			current_config_struct->CH1_input = fetched_config_struct->CH1_input;
-		}
-
-		// CH2 Input
-		if (fetched_config_struct->CH2_input < 2) {
-			current_config_struct->CH2_input = fetched_config_struct->CH2_input;
-		}
-
-		// CBC Input
-		if (fetched_config_struct->CBC_input < 2) {
-			current_config_struct->CBC_input = fetched_config_struct->CBC_input;
-		}
-
-		// CBC Velocity Ext
-		if (fetched_config_struct->CBC_velocity_ext < 2) {
-			current_config_struct->CBC_velocity_ext = fetched_config_struct->CBC_velocity_ext;
-		}
-
-		// CBC Displacement Ext
-		if (fetched_config_struct->CBC_displacement_ext < 2) {
-			current_config_struct->CBC_displacement_ext = fetched_config_struct->CBC_displacement_ext;
-		}
-
-		// CBC Polynomial Target
-		if (fetched_config_struct->CBC_polynomial_target < 2) {
-			current_config_struct->CBC_polynomial_target = fetched_config_struct->CBC_polynomial_target;
-		}
-
-
-		// Parameter
-		current_config_struct->param_a = fetched_config_struct->param_a;
-		current_config_struct->param_b = fetched_config_struct->param_b;
-		current_config_struct->param_c = fetched_config_struct->param_c;
-		current_config_struct->param_d = fetched_config_struct->param_d;
-		current_config_struct->param_e = fetched_config_struct->param_e;
-		current_config_struct->param_f = fetched_config_struct->param_f;
-		current_config_struct->param_g = fetched_config_struct->param_g;
-		current_config_struct->param_h = fetched_config_struct->param_h;
-		current_config_struct->param_i = fetched_config_struct->param_i;
-		current_config_struct->param_j = fetched_config_struct->param_j;
-		current_config_struct->param_k = fetched_config_struct->param_k;
-		current_config_struct->param_l = fetched_config_struct->param_l;
-		current_config_struct->param_m = fetched_config_struct->param_m;
-		current_config_struct->param_n = fetched_config_struct->param_n;
-	}	
+		}	
+		//Save to another local copy (this step was important when we were testing parameters individually, but now seems redundant, 
+		//Leaving it in for now in case it protects against some unforeseen concurrency bug)
+		*current_config_struct = *fetched_config_struct;
+	}
 }
 
 uint32_t send_recording(int sock_client, int32_t bytes_to_send, system_pointers_t *system_pointers) {
+
 	// Enable RAM writer and CIC divider, send "go" signal to GUI
 	int position, limit, offset = 0;
 	int buffer = 1; // set output buffer to 1
@@ -333,18 +238,11 @@ int main () {
 	bool reset_due = false;
 
 	// Initialise config structs - current and next
-	config_t fetched_config, current_config = {
-		.trigger = 0,
-		.continuous_mode = 0,
-		.fast_mode = 0,
-		.CH1_mode = 0,
-		.CH2_mode = 0,
-		.CH1_input = 0,
-		.CH2_input = 0,
-		.CBC_input = 0,
-		.CBC_velocity_ext = 0,
-		.CBC_displacement_ext = 0,
-		.CBC_polynomial_target = 0,
+	params_t fetched_config, current_config = {
+		.settings = 0,
+		.CH1_settings = 0,
+		.CH2_settings = 0,
+		.CBC_settings = 0,
 		.param_a = 0,
 		.param_b = 0,
 		.param_c = 0,
@@ -362,7 +260,7 @@ int main () {
 	};
 	
 //// write bitstream to FPGA
-	system("cat /usr/src/system_wrapper.bit > /dev/xdevcfg ");
+	system("cat /usr/src/v2.bit > /dev/xdevcfg ");
 
 //// Shared memory configuration
 	// Open GPIO memory section
@@ -377,6 +275,8 @@ int main () {
 	close(fd);
 
 	// Assign "system" pointers
+	// Be aware: system_regs.rx_rst and params.settings occupy the same byte. The idea is that resets live in system_regs, and modes live in params, however the
+	// two share a byte for legacy reasons.
 	system_pointers_t system_regs ={.ram = 0,
 									.rx_rst = (uint8_t *)(cfg + 0),
 									.rx_addr = (uint32_t *)(cfg + 4),
@@ -454,7 +354,7 @@ int main () {
 
 		
 		// print saved channel parameters			
-		printf("\nSaved config: \n"
+		printf("\nSaved Config (from shared mem): \n"
 		"trigger: %d \n"
 		"continuous_output: %d\n"
 		"fast_mode: %d\n"
@@ -466,7 +366,7 @@ int main () {
 		"CBC_velocity_ext: %d\n"
 		"CBC_displacement_ext: %d\n"
 		"CBC_polynomial_target: %d\n"
-		// "ram_address: %ld\n"
+		"ram_address: %ld\n"
 		"param_a: %d\n"
 		"param_b: %d\n"
 		"param_c: %d\n"
@@ -492,7 +392,7 @@ int main () {
 		(*(params.CBC_settings) & (1 << CBC_VEL_EXT_MASK)) >> CBC_VEL_EXT_MASK,
 		(*(params.CBC_settings) & (1 << CBC_DISP_EXT_MASK)) >> CBC_DISP_EXT_MASK,
 		(*(params.CBC_settings) & (1 << CBC_POLY_TARGET_MASK)) >> CBC_POLY_TARGET_MASK,
-		// *(system_regs.ram),
+		*(system_regs.ram),
 		*(params.param_a),
 		*(params.param_b),
 		*(params.param_c),
@@ -532,25 +432,15 @@ int main () {
 				bytes_to_send = 0;
 				
 				//Update system config parameters, preserving resets.
-				*(params.settings)  = (*(params.settings) & 0x03) |
-									(current_config.continuous_mode << 3) |
-                   					(current_config.fast_mode << 4);
-                   					
+				*(params.settings) = (*(params.settings) & 0x03) | (*(current_config.settings) & ~0x03);
                 //update CH1 toggles
- 				*(params.CH1_settings) = (current_config.CH1_input << 0) |
-                          				 (current_config.CH1_mode << 1); 	
-                         
+ 				*(params.CH1_settings) = (current_config.CH1_settings);	
 				//Update CH2 toggles
-				*(params.CH2_settings) = (current_config.CH2_input << 0) |
-                          				 (current_config.CH2_mode << 1);
-				
+				*(params.CH2_settings) = (current_config.CH2_settings);	
 				//UPdate CBC toggles
-				*(params.CBC_settings) = (current_config.CBC_input << 0) |
-                         				 (current_config.CBC_velocity_ext << 1) |
-                         				 (current_config.CBC_displacement_ext << 2) |
-                         				 (current_config.CBC_polynomial_target << 3);
+				*(params.CBC_settings) = (current_config.CBC_settings);
                  
-                //Update numerical parameters        				 
+                //Update numerical parameters  
 		    	*(params.param_a) = current_config.param_a;
 				*(params.param_b) = current_config.param_b;
 				*(params.param_c) = current_config.param_c;
@@ -566,7 +456,6 @@ int main () {
 				*(params.param_g) = current_config.param_m;
 				*(params.param_h) = current_config.param_n;
 				
-				// *(system_regs.rx_rst) = (uint8_t)((*(system_regs.rx_rst) & (~MODE_MASK)) | (current_config. << 5));
 				reset_due = true;
 			}
 
