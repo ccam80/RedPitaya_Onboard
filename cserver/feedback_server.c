@@ -193,7 +193,7 @@ uint32_t get_config(int sock_client, param_vals_t* current_config_struct, param_
 		uint8_t fetched_trigger = (fetched_config_struct->settings >> 2) & 0x01;
 		
 		if (fetched_trigger == 0) {
-			*(system_pointers->rx_rst) &= (1 << ~TRIG_BIT);
+			*(system_pointers->rx_rst) &= ~(1 << TRIG_BIT);
 			printf("Trigger off \n\n");
 		}	
 		//Save to another local copy (this step was important when we were testing parameters individually, but now seems redundant, 
