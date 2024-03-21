@@ -24,18 +24,18 @@
 // #define SAMPLING_DIVIDER_INIT 1250  	// 100 kHz
 
 // #define MODE_MASK 224
-#define TRIG_MASK 4                         // bit 2
+#define TRIG_BIT 2                         // bit 2
 #define CONFIG_ACK 2                        // just a hard coded number to send back to GUI
-#define CONTINUOUS_MASK 8					// bit 3
-#define FAST_MODE_MASK 16					// bit 4
+#define CONTINUOUS_BIT 3					// bit 3
+#define FAST_MODE_BIT 4					// bit 4
 #define CH1_INPUT_MASK 1
 #define CH1_MODE_MASK 30
 #define CH2_INPUT_MASK 1
 #define CH2_MODE_MASK 30
-#define CBC_INPUT_MASK 1
-#define CBC_VEL_EXT_MASK 2
-#define CBC_DISP_EXT_MASK 4
-#define CBC_POLY_TARGET_MASK 8
+#define CBC_INPUT_MASK 0
+#define CBC_VEL_EXT_MASK 1
+#define CBC_DISP_EXT_MASK 2
+#define CBC_POLY_TARGET_MASK 3
 
 int interrupted = 0;
 
@@ -162,9 +162,9 @@ uint32_t get_config(int sock_client, param_vals_t* current_config_struct, param_
 		"param_l: %d\n"
 		"param_m: %d\n"
 		"param_n: %d\n\n",
-		((fetched_config_struct->settings) & TRIG_MASK) >> TRIG_MASK,
-		((fetched_config_struct->settings) & (1 << CONTINUOUS_MASK)) >> CONTINUOUS_MASK,
-		((fetched_config_struct->settings) & (1 << FAST_MODE_MASK)) >> FAST_MODE_MASK,
+		((fetched_config_struct->settings) & (1 << TRIG_BIT)) >> TRIG_BIT,
+		((fetched_config_struct->settings) & (1 << CONTINUOUS_BIT)) >> CONTINUOUS_BIT,
+		((fetched_config_struct->settings) & (1 << FAST_MODE_BIT)) >> FAST_MODE_BIT,
 		(fetched_config_struct->CH1_settings & (1 << CH1_INPUT_MASK)) >> CH1_INPUT_MASK,
 		(fetched_config_struct->CH1_settings & CH1_MODE_MASK) >> 1,
 		(fetched_config_struct->CH2_settings & (1 << CH2_INPUT_MASK)) >> CH2_INPUT_MASK,
@@ -193,7 +193,7 @@ uint32_t get_config(int sock_client, param_vals_t* current_config_struct, param_
 		uint8_t fetched_trigger = (fetched_config_struct->settings >> 2) & 0x01;
 		
 		if (fetched_trigger == 0) {
-			*(system_pointers->rx_rst) &= ~TRIG_MASK;
+			*(system_pointers->rx_rst) &= (1 << ~TRIG_BIT);
 			printf("Trigger off \n\n");
 		}	
 		//Save to another local copy (this step was important when we were testing parameters individually, but now seems redundant, 
@@ -222,7 +222,7 @@ uint32_t send_recording(int sock_client, int32_t bytes_to_send, system_pointers_
 		*(system_pointers->rx_rst) |= 3;
 
 		//Trigger FPGA
-		*(system_pointers->rx_rst) |= TRIG_MASK;
+		*(system_pointers->rx_rst) |= (1 << TRIG_BIT);
 	}
 
 
@@ -404,9 +404,9 @@ int main () {
 		"param_l: %d\n"
 		"param_m: %d\n"
 		"param_n: %d\n\n",
-		(*(system_regs.rx_rst) & TRIG_MASK) >> TRIG_MASK,
-		(*(params.settings) & (1 << CONTINUOUS_MASK)) >> CONTINUOUS_MASK,
-		(*(params.settings) & (1 << FAST_MODE_MASK)) >> FAST_MODE_MASK,
+		(*(system_regs.rx_rst) & TRIG_BIT) >> TRIG_BIT,
+		(*(params.settings) & (1 << CONTINUOUS_BIT)) >> CONTINUOUS_BIT,
+		(*(params.settings) & (1 << FAST_MODE_BIT)) >> FAST_MODE_BIT,
 		(*(params.CH1_settings) & (1 << CH1_INPUT_MASK)) >> CH1_INPUT_MASK,
 		(*(params.CH1_settings) & (CH1_MODE_MASK)) >> 1,
 		(*(params.CH2_settings) & (1 << CH2_INPUT_MASK)) >> CH2_INPUT_MASK,
