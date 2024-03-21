@@ -472,12 +472,12 @@ int main () {
 				*(params.param_f) = current_config.param_f;
 				*(params.param_g) = current_config.param_g;
 				*(params.param_h) = current_config.param_h;
-				*(params.param_c) = current_config.param_i;
-				*(params.param_d) = current_config.param_j;
-				*(params.param_e) = current_config.param_k;
-				*(params.param_f) = current_config.param_l;
-				*(params.param_g) = current_config.param_m;
-				*(params.param_h) = current_config.param_n;
+				*(params.param_i) = current_config.param_i;
+				*(params.param_j) = current_config.param_j;
+				*(params.param_k) = current_config.param_k;
+				*(params.param_l) = current_config.param_l;
+				*(params.param_m) = current_config.param_m;
+				*(params.param_n) = current_config.param_n;
 				
 				reset_due = true;
 			}
