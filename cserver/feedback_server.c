@@ -102,7 +102,7 @@ void signal_handler(int sig) {
 uint32_t get_socket_type(int sock_client)
 {
 	int32_t message = 0;
-	uint32_t config_ack = 2;
+	uint32_t config_ack = CONFIG_ACK;
 
 	if(recv(sock_client, &message, sizeof(message), 0) > 0) {
 		
@@ -231,12 +231,12 @@ uint32_t send_recording(int sock_client, int32_t bytes_to_send, system_pointers_
 		// read ram writer position
 		position = *(system_pointers->rx_cntr);
 
-		// send 256 kB if ready, otherwise sleep 0.1 ms 
+		// send 4MB if ready, otherwise sleep 0.1 ms 
 		if((limit > 0 && position > limit) || (limit == 0 && position < 32*1024)) {
-			offset = limit > 0 ? 0 : 256*1024;
+			offset = limit > 0 ? 0 : 4096*1024;
 			limit = limit > 0 ? 0 : 32*1024;
 			printf("bytes to send: %d \n", bytes_to_send);
-			bytes_to_send -= send(sock_client, (system_pointers->ram) + offset, 256*1024, MSG_NOSIGNAL);			
+			bytes_to_send -= send(sock_client, (system_pointers->ram) + offset, 4096*1024, MSG_NOSIGNAL);			
 		} else {
 			usleep(100);
 		}
@@ -332,12 +332,12 @@ int main () {
 	}
 
 	// PD's code relating to contiguous data section
-	data_size = 128*sysconf(_SC_PAGESIZE);
+	data_size = 2048*sysconf(_SC_PAGESIZE);
 	if(ioctl(fd, CMA_ALLOC, &data_size) < 0) {
 		perror("ioctl");
 		return EXIT_FAILURE;
 	}
-	system_regs.ram = mmap(NULL, 128*sysconf(_SC_PAGESIZE), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+	system_regs.ram = mmap(NULL, 2048*sysconf(_SC_PAGESIZE), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 
 	// Sets current read address at top of section
 	*(system_regs.rx_addr) = data_size;
