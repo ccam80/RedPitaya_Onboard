@@ -189,13 +189,7 @@ uint32_t get_config(int sock_client, param_vals_t* current_config_struct, param_
 		(fetched_config_struct->param_n)
 		);
 
-		//Break out and write trigger quickly (potentially not required, just beats a bit of overhead overwriting the whole struct.)
-		uint8_t fetched_trigger = (fetched_config_struct->settings >> 2) & 0x01;
-		
-		if (fetched_trigger == 0) {
-			*(system_pointers->rx_rst) &= ~(1 << TRIG_BIT);
-			printf("Trigger off \n\n");
-		}	
+
 		//Save to another local copy (this step was important when we were testing parameters individually, but now seems redundant, 
 		//Leaving it in for now in case it protects against some unforeseen concurrency bug)
 		*current_config_struct = *fetched_config_struct;
@@ -242,6 +236,8 @@ uint32_t send_recording(int sock_client, int32_t bytes_to_send, system_pointers_
 		}
 	}
 
+	*(system_pointers->rx_rst) &= ~(1 << TRIG_BIT);
+	printf("Trigger off \n\n");
 	return 1;
 }
 
