@@ -400,7 +400,7 @@ int main () {
 		"param_l: %d\n"
 		"param_m: %d\n"
 		"param_n: %d\n\n",
-		(*(system_regs.rx_rst) & TRIG_BIT) >> TRIG_BIT,
+		(*(system_regs.rx_rst) & (1 << TRIG_BIT)) >> TRIG_BIT,
 		(*(params.settings) & (1 << CONTINUOUS_BIT)) >> CONTINUOUS_BIT,
 		(*(params.settings) & (1 << FAST_MODE_BIT)) >> FAST_MODE_BIT,
 		(*(params.CH1_settings) & (1 << CH1_INPUT_MASK)) >> CH1_INPUT_MASK,
