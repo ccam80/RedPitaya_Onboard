@@ -29,8 +29,6 @@ Bit      | Byte Offset | Signal                          | Substructure
 [23:16]  | 2           | "Channel 2 settings"            | [16:16]  = CH2 input_select
 &nbsp;   |             |                                 | [20:17] = CH2 Feedback_mode
 [31:24]  | 3           | "CBC settings"                  | [24:24]  = input select: (1  (disp ADC1, vel ADC2))
-&nbsp;   |             |                                 | [25:25]  = velocity (1 external, 0 differentiated)
-&nbsp;   |             |                                 | [26:26]  = displacement (1 external, 0 integrated)
 &nbsp;   |             |                                 | [27:27]  = polynomial target: (0 displacement, 1 velocity)
 [63:32]  | 4           | RAM_adress						 | [63:32] = address of ram writer
 [511:64] | 8           | Feedback_config_bus             | [95:64] (Offset 8)=param_a/ fixed_phase/ start_freqency / CBC RHAT_START
