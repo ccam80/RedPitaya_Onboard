@@ -19,15 +19,12 @@
 
 #define CMA_ALLOC _IOWR('Z', 0, uint32_t)
 
-// Starting RP Config
-// #define FIXED_FREQ_INIT 65536			// 1Hz			
-// #define SAMPLING_DIVIDER_INIT 1250  	// 100 kHz
 
-// #define MODE_MASK 224
-#define TRIG_BIT 2                         // bit 2
+
+#define TRIG_BIT 2                         	// bit 2
 #define CONFIG_ACK 2                        // just a hard coded number to send back to GUI
 #define CONTINUOUS_BIT 3					// bit 3
-#define FAST_MODE_BIT 4					// bit 4
+#define FAST_MODE_BIT 4						// bit 4
 #define CH1_INPUT_MASK 1
 #define CH1_MODE_MASK 30
 #define CH2_INPUT_MASK 1
@@ -40,7 +37,7 @@
 int interrupted = 0;
 
 
-
+// Pointers to system parameters - memory addresses and system-wide reset pins
 typedef struct system_pointers {
 	volatile uint32_t *rx_addr;
 	volatile uint32_t *rx_cntr;
@@ -48,7 +45,8 @@ typedef struct system_pointers {
 	void *ram;
 } system_pointers_t;
 
-// This is bit-packed, type-checked and range-bound in the python API, removing the need for a separate config struct type.
+
+// Pointers to user-set parameters for feedback math
 typedef struct parameter_pointers {
 	volatile int8_t  *settings;
 	volatile int8_t  *CH1_settings;
@@ -70,8 +68,8 @@ typedef struct parameter_pointers {
 	volatile int32_t *param_n;
 } params_t;
 
-// This struct is to contain the values obtained from a fetch - it may not be required, as I could probably more 
-// cleverly use the params_t struct more cleverly, but it's here for now.
+// This struct is to contain the values obtained from a fetch, which mirror the pointers struct in order.
+// Used as buffer for fetched parameters.
 typedef struct parameter_values {
 	volatile int8_t  settings;
 	volatile int8_t  CH1_settings;
@@ -93,6 +91,8 @@ typedef struct parameter_values {
 	volatile int32_t param_n;
 } param_vals_t;
 
+
+//Catch an interrupt to break out of recording loop
 void signal_handler(int sig) {
 	interrupted = 1;
 }
@@ -129,6 +129,7 @@ uint32_t get_socket_type(int sock_client)
 	}
 }
 
+//Fetch config packet from socket/network.
 uint32_t get_config(int sock_client, param_vals_t* current_config_struct, param_vals_t* fetched_config_struct, system_pointers_t *system_pointers) {
 	
 	//Block waiting for config struct
@@ -191,19 +192,22 @@ uint32_t get_config(int sock_client, param_vals_t* current_config_struct, param_
 
 
 		//Save to another local copy (this step was important when we were testing parameters individually, but now seems redundant, 
-		//Leaving it in for now in case it protects against some unforeseen concurrency bug)
+		//Leaving it in for now in case it protects against some unforeseen concurrency bug, as we can afford the overhead)
 		*current_config_struct = *fetched_config_struct;
 	}
 }
 
+// Stream data to GUI from the shared contiguous memory block. Ping/pong between chunks of memory based on current write address,
+// which is set by the FPGA
 uint32_t send_recording(int sock_client, int32_t bytes_to_send, system_pointers_t *system_pointers) {
 
-	// Enable RAM writer and CIC divider, send "go" signal to GUI
+	
 	int position, limit, offset = 0;
 	int buffer = 1; // set output buffer to 1
 
 	limit = 32*1024;
-
+	
+	// Enable RAM writer and CIC divider, send "go" signal to GUI
 	if (~(*(system_pointers->rx_rst) & 3)) {
 		printf("Trigger on\n\n");
 		
@@ -212,10 +216,10 @@ uint32_t send_recording(int sock_client, int32_t bytes_to_send, system_pointers_
 			return -1;
 		}
 
-		//Turn on CIC compiler and RAM writer
+		//Turn on downsampling and RAM writer
 		*(system_pointers->rx_rst) |= 3;
 
-		//Trigger FPGA
+		//Trigger feedback system
 		*(system_pointers->rx_rst) |= (1 << TRIG_BIT);
 	}
 
@@ -236,27 +240,28 @@ uint32_t send_recording(int sock_client, int32_t bytes_to_send, system_pointers_
 		}
 	}
 
+	//Deactivate trigger, halting output if continuous output is not active. Also stops sweeps sweeping.
 	*(system_pointers->rx_rst) &= ~(1 << TRIG_BIT);
 	printf("Trigger off \n\n");
 	return 1;
 }
 
 int main () {
-//// Variables declaration
-	int fd; //file descriptor for memoryfile
+
+	//// Variables declaration
+	int fd; //file descriptor for memory block
 	int sock_server; //Socket for Server
-	int sock_client; //Client identefire 
+	int sock_client; //Client identifier 
 	int optval=1; //Number of socket options
 
-	volatile void *cfg, *sts; //Memory pointer
+	volatile void *cfg, *sts; //pointers to shared config memory areas
 	struct sockaddr_in addr; //Server address struct
 
-	uint32_t data_size;
-	int32_t bytes_to_send, message_type;
-	//int32_t config_error = -10;
-	bool reset_due = false;
+	uint32_t data_size;						//Size of contiguous memory block
+	int32_t bytes_to_send, message_type;	//Identifying variables from "request" packet
+	bool reset_due = false;					//Reset-next-cycle flag
 
-	// Initialise config structs - current and next
+	// Initialise config structs - fetched and stored
 	param_vals_t fetched_config, current_config = {
 		.settings = 0,
 		.CH1_settings = 0,
@@ -278,10 +283,11 @@ int main () {
 		.param_n = 0
 	};
 	
-//// write bitstream to FPGA
+	//// write bitstream to FPGA
 	system("cat /usr/src/v2.bit > /dev/xdevcfg ");
+	
 
-//// Shared memory configuration
+	//// Shared memory configuration
 	// Open GPIO memory section
 	if((fd = open("/dev/mem", O_RDWR)) < 0)	{
 		perror("open");
@@ -327,18 +333,20 @@ int main () {
 		return EXIT_FAILURE;
 	}
 
-	// PD's code relating to contiguous data section
+	// Check we've got access to the contiguous data memory
 	data_size = 2048*sysconf(_SC_PAGESIZE);
 	if(ioctl(fd, CMA_ALLOC, &data_size) < 0) {
 		perror("ioctl");
 		return EXIT_FAILURE;
 	}
+	
+	// Map ram in system_regs to the cma
 	system_regs.ram = mmap(NULL, 2048*sysconf(_SC_PAGESIZE), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 
 	// Sets current read address at top of section
 	*(system_regs.rx_addr) = data_size;
 
-//// Socket Configuration
+	//// Socket Configuration
 	//Create server socket
 	if((sock_server = socket(AF_INET, SOCK_STREAM, 0)) < 0)	{
 		perror("socket");
@@ -364,9 +372,9 @@ int main () {
 	listen(sock_server, 1024);
 	printf("Listening on port %i ...\n", TCP_PORT);
 
-//// Main Loop
+	//// Main Loop
 	while(!interrupted)	{
-		// Reset RAM writer and filter
+		// Reset RAM writer and filters
 		*(system_regs.rx_rst) &= ~1;
 		usleep(100);
 		*(system_regs.rx_rst) &= ~2;
@@ -385,7 +393,6 @@ int main () {
 		"CBC_velocity_ext: %d\n"
 		"CBC_displacement_ext: %d\n"
 		"CBC_polynomial_target: %d\n"
-		// "ram_address: %ld\n"
 		"param_a: %d\n"
 		"param_b: %d\n"
 		"param_c: %d\n"
@@ -411,7 +418,6 @@ int main () {
 		(*(params.CBC_settings) & (1 << CBC_VEL_EXT_MASK)) >> CBC_VEL_EXT_MASK,
 		(*(params.CBC_settings) & (1 << CBC_DISP_EXT_MASK)) >> CBC_DISP_EXT_MASK,
 		(*(params.CBC_settings) & (1 << CBC_POLY_TARGET_MASK)) >> CBC_POLY_TARGET_MASK,
-		// (*(system_regs.ram)),
 		*(params.param_a),
 		*(params.param_b),
 		*(params.param_c),
@@ -443,14 +449,16 @@ int main () {
 			//Link lnterupt to signal_handler
 			signal(SIGINT, signal_handler); 
 
+			//Classify incoming message
 			message_type = get_socket_type(sock_client);
 
+			// If message is a config update, get and save the parameters
 			if (message_type == 0) {
 				get_config(sock_client, &current_config, &fetched_config, &system_regs);
 
 				bytes_to_send = 0;
 				
-				//Update system config parameters, preserving resets.
+				//Update system config parameters in memory, preserving resets.
 				*(params.settings) = (*(params.settings) & 0x03) | ((current_config.settings) & ~0x03);
                 //update CH1 toggles
  				*(params.CH1_settings) = (current_config.CH1_settings);	
@@ -478,7 +486,7 @@ int main () {
 				reset_due = true;
 			}
 
-			// Assume any other number is a number of bytes to receive
+			// Assume any other message header is a number of bytes to receive
 			else {
 				bytes_to_send = message_type;
 
