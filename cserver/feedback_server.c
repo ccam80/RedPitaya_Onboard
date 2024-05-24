@@ -261,6 +261,19 @@ int main () {
 	int32_t bytes_to_send, message_type;	//Identifying variables from "request" packet
 	bool reset_due = false;					//Reset-next-cycle flag
 
+
+	//Set scheduler priority and CPU affinity to avoid getting hijacked by other tasks.
+	cpu_set_t mask;
+  	struct sched_param param;
+	
+	memset(&param, 0, sizeof(param));
+  	param.sched_priority = sched_get_priority_max(SCHED_FIFO);
+  	sched_setscheduler(0, SCHED_FIFO, &param);
+
+  	CPU_ZERO(&mask);
+  	CPU_SET(1, &mask);
+  	sched_setaffinity(0, sizeof(cpu_set_t), &mask);
+
 	// Initialise config structs - fetched and stored
 	param_vals_t fetched_config, current_config = {
 		.settings = 0,
