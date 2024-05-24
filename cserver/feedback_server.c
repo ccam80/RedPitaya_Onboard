@@ -234,9 +234,9 @@ uint32_t send_recording(int sock_client, int32_t bytes_to_send, system_pointers_
 			offset = limit > 0 ? 0 : 4096*1024;
 			limit = limit > 0 ? 0 : 32*1024;
 			printf("bytes to send: %d \n", bytes_to_send);
-			bytes_to_send -= send(sock_client, (system_pointers->ram) + offset, 4096*1024, MSG_NOSIGNAL);			
+			bytes_to_send -= if(send(sock_client, (system_pointers->ram) + offset, 4096*1024, MSG_NOSIGNAL) < 0) break;			
 		} else {
-			usleep(100);
+			usleep(1000);
 		}
 	}
 
